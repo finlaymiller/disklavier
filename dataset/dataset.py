@@ -4,14 +4,13 @@ from mido import MidiFile
 import pretty_midi
 import numpy as np
 
+from utils import console
 from utils.midi import set_tempo, get_tempo, semitone_shift
-
-from rich import print
-from rich.pretty import pprint
 
 
 def segment_midi(input_file_path: str, params):
     """do the segmentation"""
+    p = "[red]datast[/red]:"
     target_tempo = int(os.path.basename(input_file_path).split("-")[1])
     set_tempo(input_file_path, target_tempo)
 
@@ -29,8 +28,8 @@ def segment_midi(input_file_path: str, params):
 
     # pprint([total_length, segment_length, num_segments_float, num_segments, init_bpm])
 
-    print(
-        f"breaking '{filename}' ({total_length:.03f} s at {target_tempo} bpm) into {num_segments:03d} segments of {segment_length:.03f} s"
+    console.log(
+        f"{p}breaking '{filename}' ({total_length:.03f} s at {target_tempo} bpm) into {num_segments:03d} segments of {segment_length:.03f} s"
     )
 
     new_files = 0
@@ -73,7 +72,12 @@ def segment_midi(input_file_path: str, params):
             set_tempo(segment_filename, target_tempo)
 
         if params.do_shift:
-            num_shifts = semitone_shift(segment_filename, params.output_dir, 12)
+            shifts = 12
+            num_shifts = semitone_shift(segment_filename, params.output_dir, shifts)
+            if num_shifts != shifts:
+                console.log(
+                    f"{p} [yellow]only shifted {num_shifts} times (expected {shifts})"
+                )
             new_files += num_shifts
         else:
             new_files += 1

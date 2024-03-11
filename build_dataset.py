@@ -2,8 +2,7 @@ import os
 from datetime import datetime
 from argparse import ArgumentParser
 
-from rich import print
-from rich.pretty import pprint
+from utils import console
 from rich.progress import track
 
 from dataset.dataset import segment_midi
@@ -47,7 +46,7 @@ if __name__ == "__main__":
         help="stop after a certain number of files",
     )
     args = parser.parse_args()
-    pprint(args)
+    console.log(args)
 
     # set up filesystem
     if not os.path.exists(args.data_dir):
@@ -75,4 +74,6 @@ if __name__ == "__main__":
             num_files += segment_midi(os.path.join(args.data_dir, filename), args)
 
     total_segs = len(os.listdir(args.output_dir))
-    print(f"[green]segmentation complete, {num_files} files generated")
+    console.log(
+        f"[red]datast[/red]:[green]segmentation complete, {num_files} files generated from {len(dataset)}"
+    )
