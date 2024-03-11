@@ -1,3 +1,3 @@
 #!/bin/bash
-cd "$(dirname "$0")"/..
-python main.py --data_dir "input_data" --param_file "params/basic.yaml" --model "autoencoder"
+cd "$(dirname "$0")"/../..
+python train.py --data_dir "inputs/no tempo" --param_file "ml/params/basic.yaml" --model "autoencoder" --output_dir "ml/outputs"

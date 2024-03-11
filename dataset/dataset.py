@@ -5,7 +5,7 @@ import pretty_midi
 import numpy as np
 
 from utils import console
-from utils.midi import set_tempo, get_tempo, semitone_shift
+from utils.midi import set_tempo, semitone_shift
 
 
 def segment_midi(input_file_path: str, params):

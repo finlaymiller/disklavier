@@ -22,7 +22,7 @@ decoder:
   channel_size: 8
   out_dim2: 1
   activation: "silu"
-model_name: "bad autoencoder"
+model_name: "bad_autoencoder"
 trainer:
   loss: "mse"
   epochs: 10

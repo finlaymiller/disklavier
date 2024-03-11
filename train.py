@@ -1,3 +1,5 @@
+import os
+from glob import iglob
 import torch
 from torch.utils.data import DataLoader
 
@@ -40,6 +42,13 @@ if __name__ == "__main__":
 
     # model setup
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    # model = AutoEncoder()
+    # if os.path.exists(os.path.join(args.output_dir, "checkpoints")):
+    #     checkpoints = iglob(
+    #         os.path.join(os.path.join(args.output_dir, "checkpoints"), "*")
+    #     )
+    #     model_checkpoint = torch.load(max(checkpoints, key=os.path.getctime))
     model = AutoEncoder().to(device)
     # encoder = Encoder(params.encoder)
     # decoder = Decoder(params.decoder)

@@ -6,7 +6,8 @@ from torch.utils.tensorboard.writer import SummaryWriter
 
 import os
 from datetime import datetime
-from rich.progress import track
+from utils import console
+from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn
 
 from utils.image import format_image, plot_images
 from ml.data_tools.augmentation import noise
@@ -20,6 +21,7 @@ class Trainer:
     val_dl: DataLoader
     optimizer: Optimizer
     train_loss: List = []
+    p = "[aquamarine1]trainer: "
 
     def __init__(
         self,
@@ -29,7 +31,7 @@ class Trainer:
         device: torch.device,
         params,
     ) -> None:
-        print(f"initializing model: '{model_name}'")
+        console.log(f"{self.p}initializing model: '{model_name}'")
 
         self.model_name = model_name
         self.model = model
@@ -41,12 +43,12 @@ class Trainer:
             self.model.parameters(), lr=self.params.learning_rate
         )
 
-        print(f"using device: {device}")
+        console.log(f"{self.p}using device: {device}")
 
         if os.path.exists(self.params.log_dir):
-            print("logging directory already exists")
+            console.log(f"{self.p}logging directory already exists")
         else:
-            print(f"creating new log folder as {self.params.log_dir}")
+            console.log(f"{self.p}creating new log folder as {self.params.log_dir}")
             os.makedirs(self.params.log_dir)
 
         self.log_dir = os.path.join(
@@ -58,24 +60,27 @@ class Trainer:
             p.numel() for p in self.model.parameters() if p.requires_grad
         )
 
-        print(f"loaded model '{self.model_name}' with {total_parameters} parameters")
+        console.log(f"{self.p}loaded model '{self.model_name}' with {total_parameters} parameters")
 
     def train(self) -> None:
         """Train the model"""
 
-        print(
-            f"training for {self.params.epochs} epochs on {len(self.train_dl) * self.params.batch_size} images"
+        console.log(f"{self.p}training for {self.params.epochs} epochs on {len(self.train_dl) * self.params.batch_size} images"
         )
         writer = SummaryWriter(self.log_dir)
 
-        self.train_loss = []
-        for epoch in range(self.params.epochs):
-            running_loss = 0.0
-            with tqdm(self.train_dl, unit="batch") as tepoch:
-                for i, (names, images) in enumerate(track(self.train_dl)):
-                    tepoch.set_description(
-                        f"Epoch {epoch+1:02d}/{self.params.epochs:02d}"
-                    )
+        with Progress(
+            SpinnerColumn(),
+            *Progress.get_default_columns(),
+            TimeElapsedColumn(),
+        ) as progress:
+            train_task = progress.add_task("[green3]dataset", total=len(self.train_dl))
+            epoch_task = progress.add_task("[cyan3]epochs", total=self.params.epochs)
+
+            self.train_loss = []
+            for epoch in range(self.params.epochs):
+                running_loss = 0.0
+                for i, (names, images) in enumerate(self.train_dl):
                     # train step
                     images = images.to(self.device)
                     self.optimizer.zero_grad()
@@ -87,7 +92,6 @@ class Trainer:
                     self.optimizer.step()
                     # update loss tracking
                     running_loss += loss.item()
-                    tepoch.set_postfix(loss=f"{loss.item():03f}")
 
                     # log to tensorboard
                     global_step = epoch * len(self.train_dl) + i
@@ -100,17 +104,21 @@ class Trainer:
                             writer.add_histogram(
                                 f"gradients/{p_name}.grad", param.grad, global_step
                             )
+
+                    progress.update(train_task, advance=self.params.batch_size)
                 # track loss
                 loss = running_loss / len(self.train_dl)
                 self.train_loss.append(loss)
 
-        print(f"done training! loss is", self.train_loss)
+                progress.update(epoch_task, advance=1)
+
+            console.log(f"{self.p}done training! loss is", self.train_loss)
 
     def test_reconstruction(
         self, image, label: str, run_file=None, overfit: bool = False
     ) -> None:
         """"""
-        print(f"testing {self.model_name} image reconstruction on {label}", image.shape)
+        console.log(f"{self.p}testing {self.model_name} image reconstruction on {label}", image.shape)
         noisy_image = image  # noise(image)
         noisy_image = noisy_image.to(self.device)
 
