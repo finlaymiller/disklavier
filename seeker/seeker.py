@@ -1,6 +1,7 @@
 import os
 import json
 import pretty_midi
+import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cosine
 from rich.progress import track, Progress
@@ -69,7 +70,7 @@ class Seeker:
     def build_similarity_table(self):
         """"""
 
-        sim_file = f"sims-{os.path.basename(self.input_dir).replace(' ', '_')}.parquet"
+        sim_file = f"sims-{os.path.basename(self.input_dir).replace(' ', '_')}-m.parquet"
         console.log(f"{self.p} looking for similarity file '{sim_file}'")
         parquet = os.path.join(self.output_dir, sim_file)
         self.load_similarities(parquet)
@@ -86,13 +87,25 @@ class Seeker:
             ]
 
             names = [v["name"] for v in vectors]
-            vecs = [v["metric"] for v in vectors]
+            vecs = np.array([v["metric"] for v in vectors])
 
             console.log(f"{self.p} building similarity table for {len(vecs)} vectors")
 
-            self.table = pd.DataFrame(index=names, columns=names, dtype="float64")
+            # histograms = np.array(vecs)
+
+            # norms = np.linalg.norm(histograms, axis=1, keepdims=True)
+            # normalized_histograms = histograms / norms
+
+            # cosine_similarity_matrix = np.dot(
+            #     normalized_histograms, normalized_histograms.T
+            # )
+
+            # self.table = pd.DataFrame(
+            #     cosine_similarity_matrix, index=names, columns=names, dtype="float64"
+            # )
 
             # compute cosine similarity for each pair of vectors
+            self.table = pd.DataFrame(index=names, columns=names, dtype="float64")
             with Progress() as progress:
                 sims_task = progress.add_task(
                     f"{self.p} calculating sims", total=len(vecs) ** 2
@@ -109,7 +122,7 @@ class Seeker:
                 f"{self.p} Generated a similarity table of shape {self.table.shape}"
             )
 
-            self.table.to_parquet(parquet, index=False)
+            self.table.to_parquet(parquet, compression="gzip", index=True)
 
             if os.path.isfile(parquet):
                 console.log(f"{self.p} succesfully saved similarities file '{parquet}'")

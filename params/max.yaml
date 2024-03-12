@@ -16,3 +16,4 @@ seeker:
   bin_length: 1.0
   ph_weight_dur: False
   ph_weight_vel: False
+  property: "pitch_histogram"

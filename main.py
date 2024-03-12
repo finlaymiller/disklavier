@@ -55,11 +55,6 @@ if __name__ == "__main__":
         help="directory in which to store outputs (logs, recordings, etc...)",
     )
     parser.add_argument(
-        "--log_config",
-        default=None,
-        help="where the logging config file is found",
-    )
-    parser.add_argument(
         "-f",
         "--force_rebuild",
         action="store_true",
