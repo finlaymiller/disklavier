@@ -2,6 +2,8 @@ from torch.utils.data import Dataset
 
 from typing import List
 
+from utils import console
+
 
 class MIDILoopDataset(Dataset):
     def __init__(
@@ -13,7 +15,9 @@ class MIDILoopDataset(Dataset):
         self.data = data * multiplier
         self.transforms = transforms
 
-        print(f"Created dataset with {len(self.data)} images")
+        console.log(
+            f"[plum3]augment[/plum3]: created dataset with {len(self.data)} images"
+        )
 
     def __len__(self):
         return len(self.data)

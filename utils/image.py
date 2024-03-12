@@ -6,8 +6,12 @@ import numpy as np
 from datetime import datetime
 import matplotlib.pyplot as plt
 
+from utils import console
+
 from typing import List
 from numpy.typing import NDArray
+
+p = "[navajo_white1]utils[/navajo_white1]  :"
 
 
 def plot_images(
@@ -38,10 +42,11 @@ def plot_images(
 
     plt.savefig(os.path.join(output_dir, outfile_name))
 
-    print(f"saved output in '{os.path.join(output_dir, outfile_name)}'")
+    console.log(f"{p} saved output in '{os.path.join(output_dir, outfile_name)}'")
 
 
 def format_image(image: NDArray | torch.Tensor, remove_time=True) -> torch.Tensor:
+    console.log(f"{p} reformatting image ({image.shape})")
     # remove time factor
     if remove_time:
         image = np.delete(image, 0, axis=1)
@@ -51,6 +56,7 @@ def format_image(image: NDArray | torch.Tensor, remove_time=True) -> torch.Tenso
     if torch.any(image > 1.0):
         image = image / image.max()
     # zero-pad to (1, 60, 412)
-    image = pad(input=image, pad=(0, 12, 1, 1), mode="constant", value=0.0)
+    image = pad(image, (3, 4, 5, 5), mode="constant", value=0.0)
+    # image = pad(input=image, pad=(0, 12, 1, 1), mode="constant", value=0.0)
 
     return image

@@ -1,12 +1,13 @@
+log_dir: "runs"
 augmenter:
-  factor: 10
-  do_vshift: true
+  factor: 1
+  do_vshift: false
   do_smear: false
   smear_radius: 3
   smear_filter: "max"
   do_noise: true
   noise_factor: 0.05
-  overfit: true
+  overfit: false
   overfit_index: 0
   overfit_length: 3200
 encoder:
@@ -35,4 +36,3 @@ loader:
   batch_size: 32
   shuffle: true
   num_workers: 4
-

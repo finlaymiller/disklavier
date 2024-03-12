@@ -8,12 +8,15 @@ from tqdm import tqdm
 
 from typing import List
 
-from data.dataset import MIDILoopDataset
-from data.augmentation import vertical_shift, smear, noise
+from ml.data_tools.dataset import MIDILoopDataset
+from ml.data_tools.augmentation import vertical_shift, smear, noise
 from utils.image import format_image
+
+from utils import console
 
 
 class DataAugmenter:
+    p = "[plum3]augment[/plum3]:"
     dataset: Dataset
     dataset_name: str
     dataset_path: str
@@ -22,7 +25,7 @@ class DataAugmenter:
         self,
         dir: str,
         params,
-        default_dataset: str = "input_data/all_data.npz",
+        default_dataset: str = "data/all_data_prs.npz",
     ):
         self.dir = dir
         self.params = params
@@ -55,8 +58,8 @@ class DataAugmenter:
                     index = int(random.uniform(0, len(self._n2l(f))))
                     clean_image = self._n2l(f)[index]
         else:
-            print(
-                f"not getting clean image from default dataset, falling back on test set"
+            console.log(
+                f"{self.p}not getting clean image from default dataset, falling back on test set"
             )
             clean_image = self.dataset[0]
 
@@ -68,15 +71,15 @@ class DataAugmenter:
         """
         dataset_found = False
         if os.path.exists(self.dataset_path + ".npz"):
-            print(
-                f"found a {os.path.getsize(self.dataset_path + '.npz')}B dataset matching the current parameters at\n\t{self.dataset_path}\nloading from there..."
+            console.log(
+                f"{self.p} found a {os.path.getsize(self.dataset_path + '.npz')}B dataset matching the current parameters at\n\t{self.dataset_path}\nloading from there..."
             )
             with np.load(self.dataset_path + ".npz") as f:
                 self.dataset = MIDILoopDataset(self._n2l(f))
             dataset_found = True
         else:
-            print(
-                f"no dataset found matching the current parameters\n\t{self.dataset_name}"
+            console.log(
+                f"{self.p} no dataset found matching the current parameters\n\t{self.dataset_name}"
             )
 
         return dataset_found
@@ -84,7 +87,7 @@ class DataAugmenter:
     def save(self, data: List):
         """save out newly-augmented dataset to `.npz` file in same directory as input file."""
 
-        print(f"saving dataset to \n\t{self.dataset_path}.npz\t")
+        console.log(f"{self.p}saving dataset to \n\t{self.dataset_path}.npz\t")
 
         np.savez_compressed(
             self.dataset_path,
@@ -92,7 +95,9 @@ class DataAugmenter:
         )
 
         if os.path.exists(self.dataset_path + ".npz"):
-            print(f"successfully wrote {os.path.getsize(self.dataset_path + '.npz')}B")
+            console.log(
+                f"{self.p}successfully wrote {os.path.getsize(self.dataset_path + '.npz')}B"
+            )
         else:
             raise FileNotFoundError
 
@@ -101,9 +106,9 @@ class DataAugmenter:
 
         if self.params.overfit:
             with np.load(self.default_set) as f:
-                print(f"overfit test activated")
+                console.log(f"{self.p} overfit test activated")
                 data = self._n2l(f)
-                random.shuffle(data)
+                # random.shuffle(data)
                 random_image = data[self.params.overfit_index]
                 self.dataset = MIDILoopDataset(
                     [(random_image[0], format_image(random_image[1]))],
@@ -111,15 +116,19 @@ class DataAugmenter:
                 )
         elif not self.load():
             with np.load(self.default_set) as f:
-                print(f"generating new augmentation from {self.default_set}")
+                console.log(
+                    f"{self.p} generating new augmentation from {self.default_set}"
+                )
                 dataset_augmented = self._augment(self._n2l(f))
                 self.save(dataset_augmented)
                 self.dataset = MIDILoopDataset(dataset_augmented)
 
             # ensure that data was written correctly
             if not self.load():
-                print(f"failed to load new dataset {self.dataset_path}")
+                console.log(f"{self.p} failed to load new dataset {self.dataset_path}")
                 raise FileNotFoundError
+
+        console.log(f"{self.p} finished loading dataset of {len(self.dataset)} ({self.dataset[0][1].shape}) samples")  # type: ignore
 
         return self.dataset
 
@@ -158,8 +167,8 @@ class DataAugmenter:
 
         random.shuffle(second_pass)
 
-        print(
-            f"used {len(clean_images)} images to generate {len(second_pass)} images of shape {second_pass[0][1].size()}"
+        console.log(
+            f"{self.p} used {len(clean_images)} images to generate {len(second_pass)} images of shape {second_pass[0][1].size()}"
         )
 
         return second_pass

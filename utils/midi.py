@@ -6,7 +6,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import mido
-from mido import MidiFile, MidiTrack, Message, MetaMessage
+from mido import MidiFile, MetaMessage
 
 from utils import console
 
