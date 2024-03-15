@@ -79,6 +79,13 @@ if __name__ == "__main__":
         help="metronome during playback",
     )
     parser.add_argument(
+        "-v",
+        "--velocity",
+        type=float,
+        default=1.0,
+        help="scale note velocities [0.1, 2.0]",
+    )
+    parser.add_argument(
         "--tempo",
         type=int,
         help="tempo to record and play at, in bpm",
@@ -86,13 +93,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
     params = OmegaConf.load(args.param_file)
 
+    console.log(f"{p} loading with args:\n\t{args}")
+    console.log(f"{p} loading with params:\n\t{params}")
+
     # filesystem setup
     log_dir = os.path.join(args.output_dir, "logs")
     record_dir = os.path.join(args.output_dir, "records")
     plot_dir = os.path.join(args.output_dir, "plots")
 
     if not os.path.exists(args.output_dir):
-        console.log(f"{p} creating new outputs folder: '{args.output_dir}'")
         os.mkdir(args.output_dir)
     if not os.path.exists(log_dir):
         console.log(f"{p} creating new logging folder: '{log_dir}'")
@@ -106,7 +115,11 @@ if __name__ == "__main__":
     console.log(f"{p}[green bold] filesystem is set up")
 
     if args.tempo:
-        playback_tempo = check_tempo(args.tempo)
+        # playback_tempo = check_tempo(args.tempo)
+        playback_tempo = args.tempo
+
+    if args.velocity < 0.1 or args.velocity > 2.0:
+        console.log(f"{p}[red] velocity argument is out of bounds\n{args.velocity} must be between [0.1, 2.0]")
 
     # run!
     overseer = Overseer(
@@ -116,12 +129,13 @@ if __name__ == "__main__":
         plot_dir,
         playback_tempo,
     )
-    console.log(f"{p} overseeer setup complete")
+    console.log(f"{p} overseer setup complete")
     overseer.start()
 
     # run complete
-    console.log(f"{p}[green bold] session complete, saving log")
     console.save_text(
         os.path.join(log_dir, f"{datetime.now().strftime('%y-%m-%d_%H%M%S')}.log")
     )
-    console.log(f"{p} save complete, exiting")
+    console.log(f"{p}[green bold] session complete, exiting")
+
+    exit()

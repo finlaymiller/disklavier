@@ -1,3 +1,3 @@
 #!/bin/bash
 cd "$(dirname "$0")"/..
-python main.py --data_dir "inputs/no tempo" --param_file "params/disklavier.yaml" --output_dir "outputs" --log_config "logging.conf" --tempo $1
+python main.py --data_dir "inputs/all-fourbar-tmp" --param_file "params/disklavier.yaml" --output_dir "outputs" --tempo $1
