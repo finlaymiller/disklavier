@@ -178,6 +178,15 @@ class Seeker:
             for filename, details in self.properties.items()
         ]
 
+        if self.params.property == "pr_blur_c":
+            vectors = [
+                {"name": v["name"],
+                 "metric": np.asarray(v["metric"]).flatten()
+                }
+                for v in vectors
+                if v["name"].endswith("n00.mid")
+            ]
+
         names = [v["name"] for v in vectors]
         vecs = [v["metric"] for v in vectors]
 
@@ -197,9 +206,7 @@ class Seeker:
             "diff 4",
             "diff 5",
         ]
-        column_labels = [
-            [label, f"sim-{i + 1}"] for i, label in enumerate(labels)
-        ]
+        column_labels = [[label, f"sim-{i + 1}"] for i, label in enumerate(labels)]
         # column_labels = [
         #     [f"{prob:.03f}-{i}", f"sim-{i + 1}"] for i, prob in enumerate(self.probs)
         # ]
@@ -256,7 +263,7 @@ class Seeker:
                 # update second five columns
                 for other_name in self.table.index:
                     # console.log(f"{self.p} checking col '{names[j]}'")
-                    j = int(self.table.index.get_loc(other_name)) # type: ignore
+                    j = int(self.table.index.get_loc(other_name))  # type: ignore
                     j_name, j_seg_num, j_shift = other_name.split("_")
                     j_seg_start, j_seg_end = j_seg_num.split("-")
                     j_track_name = f"{j_name}_{j_seg_num}"

@@ -45,7 +45,7 @@ def blur_pr(midi: PrettyMIDI, do_center: bool = True, delta_max: int = 55):
     small_img = cv2.resize(pr, (width, height), interpolation=cv2.INTER_AREA)
     blurred_img = convolve2d(small_img, filter)
 
-    return np.asarray(blurred_img).tolist()
+    return np.asarray(blurred_img).flatten().tolist()
 
 
 def strip_and_pad(pr, h_max):

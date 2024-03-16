@@ -47,7 +47,7 @@ class Overseer:
             os.mkdir(os.path.join(self.plot_dir, plot_dir))
         self.plot_dir = os.path.join(self.plot_dir, plot_dir)
 
-        self._init_midi()  # make sure MIDI port is available first
+        # self._init_midi()  # make sure MIDI port is available first
         if len(os.listdir(self.data_dir)) < 10:
             console.log(
                 f"{self.p} [red]less than 10 files in input folder. are you sure you didnt screw something up?"
