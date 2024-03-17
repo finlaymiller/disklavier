@@ -1,6 +1,5 @@
 import os
 import mido
-import numpy as np
 from queue import Queue
 from threading import Thread, Event
 from datetime import datetime
@@ -12,7 +11,9 @@ from listener.listener import Listener
 from seeker.seeker import Seeker
 
 from utils import console
-import utils.midi as um
+from utils.midi import augment_recording
+from utils.metrics import scale_vels
+from utils.plot import plot_images, plot_piano_roll_and_pitch_histogram
 
 
 class Overseer:
@@ -23,6 +24,7 @@ class Overseer:
         self,
         params,
         args,
+        playlist_dir: str,
         record_dir: str,
         plot_dir: str,
         tempo: int,
@@ -32,6 +34,7 @@ class Overseer:
         self.params = params
         self.data_dir = args.data_dir
         self.output_dir = args.output_dir
+        self.playlist_dir = playlist_dir
         self.record_dir = record_dir
         self.plot_dir = plot_dir
         self.tempo = tempo
@@ -118,26 +121,52 @@ class Overseer:
                     )
 
                     # get most similar file to recording
-                    recorded_ph = self.seeker.midi_to_ph(recording_path)
-                    first_link = self.seeker.find_most_similar_vector(recorded_ph)
-                    next_file_path = os.path.join(self.data_dir, str(first_link[0]))
+                    first_file, first_similarity = self.seeker.get_ms_to_recording(
+                        recording_path
+                    )
+                    if self.params.augment_recording:
+                        options = augment_recording(
+                            recording_path, self.plot_dir, self.tempo
+                        )
+
+                        change = None
+                        for opt in options:
+                            match_path, match_sim = self.seeker.get_ms_to_recording(opt)
+
+                            if match_sim > first_similarity:
+                                recording_path = opt
+                                first_similarity = match_sim
+                                first_file = match_path
+
+                                if recording_path.endswith("fh.mid"):
+                                    change = "first half"
+                                elif recording_path.endswith("sh.mid"):
+                                    change = "second half"
+                                elif recording_path.endswith("db.mid"):
+                                    change = "doubled"
+
+                        if change is not None:
+                            console.log(
+                                f"{self.p} using alt version of recording: [bold deep_pink3]{change}[/bold deep_pink3]"
+                            )
+
+                    next_file_path = os.path.join(self.data_dir, str(first_file))
                     next_file_path = self.change_tempo(next_file_path)
 
                     # save plots of both PHs
-                    plot_dir = f"pr_ph_{datetime.now().strftime('%y%m%d-%H%M%S')}"
-                    plot_path = os.path.join(self.output_dir, "plots", plot_dir)
-
-                    if os.path.exists(plot_path):
-                        plot_path += "_2"
-                    os.mkdir(plot_path)
-                    um.plot_piano_roll_and_pitch_histogram(recording_path, plot_path)
-                    um.plot_piano_roll_and_pitch_histogram(next_file_path, plot_path)
+                    # plot_dir = f"pr_ph_{datetime.now().strftime('%y%m%d-%H%M%S')}"
+                    # plot_path = os.path.join(self.output_dir, "plots", plot_dir)
+                    # if os.path.exists(plot_path):
+                    #     plot_path += "_2"
+                    # os.mkdir(plot_path)
+                    # plot_piano_roll_and_pitch_histogram(recording_path, plot_path)
+                    # plot_piano_roll_and_pitch_histogram(next_file_path, plot_path)
 
                     # start up player
-                    self.playlist_queue.put((next_file_path, float(first_link[1])))
+                    self.playlist_queue.put((next_file_path, first_similarity))
                     playback_thread = Thread(
                         target=self.player.playback_loop,
-                        args=(recording_path, recorded_ph),
+                        args=(recording_path, change),
                         name="player",
                     )
                     playback_thread.start()
@@ -289,23 +318,23 @@ class Overseer:
         # console.log(f"{self.p} expected len {segment_length:.04f} but found {midi.length:.04f} and calcd {mido.tick2second(total_time_t, 220, mido.bpm2tempo(file_bpm))}")
 
         # scale velocities
-        if self.v_scale != 1.0 :
-            new_pm = PrettyMIDI(new_file_path)
-            os.remove(new_file_path)
-            [[v_min_o, v_max_o], v_hist_o] = um.get_velocities(new_pm)
-            scaled_midi = um.scale_vels(new_pm, self.v_scale)
-            [[v_min_i, v_max_i], v_hist_i] = um.get_velocities(scaled_midi)
-            console.log(
-                f"{self.p} scaled by factor {self.v_scale} ({v_min_o}, {v_max_o}) -> ({v_min_i}, {v_max_i})\n{v_hist_o} -> {v_hist_i}"
-            )
-            scaled_midi.write(new_file_path)
+        # if self.v_scale != 1.0 :
+        #     new_pm = PrettyMIDI(new_file_path)
+        #     os.remove(new_file_path)
+        #     [[v_min_o, v_max_o], v_hist_o] = um.get_velocities(new_pm)
+        #     scaled_midi = scale_vels(new_pm, self.v_scale)
+        #     [[v_min_i, v_max_i], v_hist_i] = um.get_velocities(scaled_midi)
+        #     console.log(
+        #         f"{self.p} scaled by factor {self.v_scale} ({v_min_o}, {v_max_o}) -> ({v_min_i}, {v_max_i})\n{v_hist_o} -> {v_hist_i}"
+        #     )
+        #     scaled_midi.write(new_file_path)
 
         # old_path = os.path.join(self.plot_dir, os.path.basename(midi_file_path))
         old_pr = PrettyMIDI(midi_file_path).get_piano_roll()
         new_pr = PrettyMIDI(new_file_path).get_piano_roll()
         plot_path = os.path.join(self.plot_dir, f"loop {self.iter}.png")
 
-        um.plot_images(
+        plot_images(
             [old_pr, new_pr],
             [
                 f"{os.path.basename(midi_file_path)} ({midi.length:.02f}s)",

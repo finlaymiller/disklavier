@@ -44,7 +44,7 @@ class Listener:
                     if msg.value == 0:
                         end_time = time.time()
                         console.log(
-                            f"{self.p} stopping recording after {end_time - start_time:.02f}s"
+                            f"{self.p} stopping recording after {end_time - start_time:.02f} s"
                         )
                         self.is_recording = False
 
@@ -58,7 +58,7 @@ class Listener:
                         else:
                             console.log(f"{self.p} no notes recorded")
                     elif self.is_recording == False:
-                        console.log(f"{self.p} recording at {self.params.tempo}BPM")
+                        console.log(f"{self.p} recording at {self.params.tempo} BPM")
                         self.is_recording = True
 
                         self.stop_tick_event = Event()
@@ -81,7 +81,7 @@ class Listener:
 
     def save_midi(self, dt):
         """Saves the recorded notes to a MIDI file."""
-        self.outfile = f"recording_{datetime.now().strftime('%y-%m-%d_%H%M%S')}.mid"
+        self.outfile = f"recording-{self.params.tempo:03d}-{datetime.now().strftime('%y%m%d_%H%M%S')}.mid"
         console.log(f"{self.p} saving recording '{self.outfile}'")
 
         mid = MidiFile()

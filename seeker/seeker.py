@@ -13,7 +13,9 @@ from rich.progress import (
 )
 
 from utils import console
-from utils.midi import all_properties
+import utils.metrics as metrics
+
+from typing import Tuple
 
 
 class Seeker:
@@ -29,40 +31,16 @@ class Seeker:
         self.input_dir = input_dir
         self.output_dir = output_dir
         self.force_rebuild = force_rebuild
-
-        # self.probs = [
-        #     1 / 5,  # same
-        #     1 / 6,  # next 1
-        #     1 / 6,  # prev 1
-        #     1 / 10,  # next 2
-        #     1 / 10,  # prev 2
-        #     0.0533,  # diff 1
-        #     0.0533,  # diff 2
-        #     0.0533,  # diff 3
-        #     0.0533,  # diff 4
-        # ]
-        # self.probs.append(1 - sum(self.probs))  # add diff 5
-        self.probs = [
-            1 / 20,  # same
-            1 / 20,  # next 1
-            1 / 20,  # prev 1
-            1 / 20,  # next 2
-            1 / 20,  # prev 2
-            0.15,  # diff 1
-            0.15,  # diff 2
-            0.15,  # diff 3
-            0.15,  # diff 4
-            0.15,  # diff 5
-        ]
+        self.probs = self.params.probabilities
         self.cumprobs = np.cumsum(self.probs)
         self.rng = np.random.default_rng(1)
 
-        self.rng.choice(np.arange(len(self.probs)), p=self.probs, size=1)
+        console.log(f"{self.p} initialized to use metric '{self.params.property}'")
 
     def build_properties(self) -> None:
         dict_file = os.path.join(
             self.output_dir,
-            f"{os.path.basename(os.path.normpath(self.input_dir)).replace(' ', '_')}_properties.json",
+            f"{os.path.basename(os.path.normpath(self.input_dir)).replace(' ', '_')}.json",
         )
 
         if os.path.exists(dict_file) and not self.force_rebuild:
@@ -81,7 +59,7 @@ class Seeker:
                 if file.endswith(".mid") or file.endswith(".midi"):
                     file_path = os.path.join(self.input_dir, file)
                     midi = pretty_midi.PrettyMIDI(file_path)
-                    properties = all_properties(midi, file, self.params)
+                    properties = metrics.all_properties(file_path, file, self.params)
                     self.properties[file] = {
                         "filename": file,
                         "properties": properties,
@@ -164,30 +142,16 @@ class Seeker:
                 console.log(f"{self.p} error saving similarities file '{parquet}'")
                 raise FileNotFoundError
 
-    def build_top_n_table(self, n: int = 10, vision: int = 1) -> None:
-        """
-        TODO before rerun:
-            - ensure that row names are properly set
-            - calculate next & previous files properly
-            - set column names to use cumsum of probs
-            - force different tracks for different file columns
-        """
+    def build_top_n_table(self, n: int = 10, vision: int = 2) -> None:
+        """ """
         parquet = os.path.join(
             self.output_dir,
-            f"{os.path.basename(os.path.normpath(self.input_dir)).replace(' ', '_')}.parquet",
+            f"{os.path.basename(os.path.normpath(self.input_dir)).replace(' ', '_')}_{self.params.property}.parquet",
         )
 
         self.load_similarities(parquet)
 
         if self.table is not None:
-
-            column_labels = [
-                [f"{prob}-{i + 1}", f"sim-{i + 1}"] for i, prob in enumerate(self.probs)
-            ]
-            column_labels = [label for sublist in column_labels for label in sublist]
-            console.log(f"{self.p} swapping probs to:\n", column_labels)
-            self.table.columns = column_labels
-
             console.log(
                 f"{self.p} loaded existing similarity file from '{parquet}' ({self.table.shape})\n",
                 self.table.columns,
@@ -198,7 +162,7 @@ class Seeker:
 
         if n % 2:
             console.log(
-                f"{self.p} [yellow]uneven value passed in for n ([/yellow]{n}[yellow]), rounding down"
+                f"{self.p} [yellow]odd value passed in for n ([/yellow]{n}[yellow]), rounding down"
             )
             n -= 1
 
@@ -214,12 +178,25 @@ class Seeker:
         vecs = [v["metric"] for v in vectors]
 
         console.log(
-            f"{self.p} building top-{n} similarity table for {len(vecs)} vectors from '{self.input_dir}'"
+            f"{self.p} building top-{n} similarity table for {len(vecs)} vectors from '{self.input_dir}' using metric '{self.params.property}'"
         )
 
-        column_labels = [
-            [f"{prob}-{i+1}", f"sim-{i+1}"] for i, prob in enumerate(self.probs)
+        labels = [
+            "loop  ",
+            "prev 1",
+            "next 1",
+            "prev 2",
+            "next 2",
+            "diff 1",
+            "diff 2",
+            "diff 3",
+            "diff 4",
+            "diff 5",
         ]
+        column_labels = [[label, f"sim-{i + 1}"] for i, label in enumerate(labels)]
+        # column_labels = [
+        #     [f"{prob:.03f}-{i}", f"sim-{i + 1}"] for i, prob in enumerate(self.probs)
+        # ]
         column_labels = [label for sublist in column_labels for label in sublist]
 
         self.table = pd.DataFrame(
@@ -229,12 +206,8 @@ class Seeker:
         )
 
         console.log(
-            f"{self.p} initialized table ({len(names)}, {len(column_labels)}) with rows:\n{names[:5]}\nand columns:\n{column_labels[:5]}"
+            f"{self.p} initialized table ({len(names)}, {len(column_labels)}) with rows:\n{names[:5]}\nand columns:\n{column_labels}"
         )
-
-        # index ranges for first and second sections of dataframe
-        same_track_range = range(1, n, 2)
-        diff_track_range = range(n + 1, n * 2, 2)
 
         progress = Progress(
             SpinnerColumn(),
@@ -245,39 +218,50 @@ class Seeker:
         )
         sims_task = progress.add_task("calculating sims", total=len(vecs) ** 2)
         with progress:
-            # for each row (file)
-            for i in range(len(vecs)):
-                console.log(f"\n{self.p} adding row '{names[i]}'")
+            for name in self.table.index:
+                # console.log(f"\n{self.p} populating row '{name}'")
 
-                i_name, i_seg_num, i_shift = names[i].split("_")
+                i = int(self.table.index.get_loc(name))  # type: ignore
+                i_name, i_seg_num, i_shift = name.split("_")
                 i_seg_start, i_seg_end = i_seg_num.split("-")
+                i_track_name = f"{i_name}_{i_seg_num}"
                 # console.print(i_name, i_seg_num, i_shift, i_seg_start, i_seg_end)
-                # for each other file
-                for j in range(len(vecs)):
+
+                # populate first five columns
+                # get prev file(s)
+                prv2_file = None
+                prev_file = self.get_prev(name)
+                if prev_file:
+                    if int(i_seg_start) != 0:
+                        prv2_file = self.get_prev(prev_file)
+
+                # get next file(s)
+                nxt2_file = None
+                next_file = self.get_next(name)
+                if next_file:
+                    nxt2_file = self.get_next(next_file)
+
+                names = [name, prev_file, next_file, prv2_file, nxt2_file]
+
+                for j, k in zip(range(0, n, 2), names):
+                    self.table.iat[i, j] = k
+
+                # update second five columns
+                for other_name in self.table.index:
                     # console.log(f"{self.p} checking col '{names[j]}'")
-                    j_name, j_seg_num, j_shift = names[j].split("_")
+                    j = int(self.table.index.get_loc(other_name))  # type: ignore
+                    j_name, j_seg_num, j_shift = other_name.split("_")
                     j_seg_start, j_seg_end = j_seg_num.split("-")
+                    j_track_name = f"{j_name}_{j_seg_num}"
                     # console.print(j_name, j_seg_num, j_shift, j_seg_start, j_seg_end)
 
-                    sim = float(1 - cosine(vecs[i], vecs[j])) if i != j else 1.0
+                    sim = float(1 - cosine(vecs[i], vecs[j]))
 
-                    # neighboring clips
-                    if i_name == j_name and (
-                        i_seg_start == j_seg_start
-                        or i_seg_start == j_seg_end
-                        or i_seg_end == j_seg_start
-                    ):
-                        # console.log(f"{self.p} comparing neighboring clip")
+                    diff_track_range = range(n + 1, n * 2, 2)
+                    if i_track_name != j_track_name:  # clip is from a different track
                         self.replace_smallest_sim(
-                            names[i],
-                            names[j],
-                            sim,
-                            same_track_range,
-                        )
-                    else:  # clip is not neighboring
-                        self.replace_smallest_sim(
-                            names[i],
-                            names[j],
+                            name,
+                            other_name,
                             sim,
                             diff_track_range,
                         )
@@ -288,7 +272,7 @@ class Seeker:
             f"{self.p} Generated a similarity table of shape {self.table.shape}"
         )
 
-        self.table.to_parquet(parquet, index=False)
+        self.table.to_parquet(parquet, index=True)
 
         if os.path.isfile(parquet):
             console.log(f"{self.p} succesfully saved similarities file '{parquet}'")
@@ -331,13 +315,30 @@ class Seeker:
 
         self.properties[filename]["played"] += 1  # mark current file as played
 
-        # columns = self.table.columns[::2].insert(0, 0)
         columns = list(self.table.columns[::2].values)
         roll = self.rng.choice(columns, p=self.probs)
-        if columns.index(roll) > 5:
-            console.log(f"{self.p}[blue1] TRACK TRANSITION[/blue1] (rolled {roll})") 
+        # if columns.index(roll) > 5:
+        #     console.log(f"{self.p}[blue1] TRACK TRANSITION[/blue1] (rolled '{roll}')")
 
-            console.log(f"{self.p} options: ", self.table.loc[filename])
+        if self.params.calc_trans and not filename.endswith('n00.mid'):
+            filename = filename[:-7] + 'n00.mid'
+
+        next_filename = self.table.at[filename, f"{roll}"]
+        next_col = self.table.columns.get_loc(roll) + 1  # type: ignore
+        # console.log(
+        #     f"{self.p} looking for similarity at ['{filename}', '{self.table.columns[next_col]}']\n\t",
+        #     self.table.at[filename, self.table.columns[next_col]],
+        # )
+        similarity = float(self.table.at[filename, self.table.columns[next_col]])
+
+        # when the source file is at the start or end of a track the prev/next
+        # columns respectively can be None
+        while next_filename == None:
+            console.log(f"{self.p}[blue1] REROLL[/blue1] (rolled '{roll}')")
+            roll = self.rng.choice(columns, p=self.probs)
+            next_filename = self.table.at[filename, f"{roll}"]
+            next_col = self.table.columns.get_loc(roll) + 1  # type: ignore
+            similarity = float(self.table.at[filename, self.table.columns[next_col]])
 
         # console.log(f"{self.p} rolled {roll}")
         # console.log(f"{self.p} columns\n{columns}")
@@ -360,13 +361,13 @@ class Seeker:
 
         #         break
 
-        next_filename = self.table.at[filename, f"{roll}"]
-        next_col = self.table.columns.get_loc(roll) + 1  # type: ignore
-        # console.log(
-        #     f"{self.p} looking for similarity at ['{filename}', '{self.table.columns[next_col]}']\n\t",
-        #     self.table.at[filename, self.table.columns[next_col]],
-        # )
-        similarity = float(self.table.at[filename, self.table.columns[next_col]])
+        # check transposition if using centered blur
+        if self.params.calc_trans:
+            next_filename, similarity = self.pitch_transpose(
+                os.path.join(self.input_dir, filename),
+                os.path.join(self.input_dir, next_filename),
+                similarity,
+            )
 
         console.log(
             f"{self.p} found '{next_filename}' with similarity {similarity:03f}"
@@ -374,19 +375,25 @@ class Seeker:
 
         return next_filename, similarity
 
-    def midi_to_ph(self, midi_file: str):
-        """"""
-        console.log(f"{self.p} calculating pitch histogram for '{midi_file}'")
+    def get_ms_to_recording(self, recording_path: str) -> Tuple[str | None, float]:
+        console.log(
+            f"{self.p} finding most similar vector to '{recording_path}' with metric {self.params.property}"
+        )
 
-        midi = pretty_midi.PrettyMIDI(midi_file)
+        midi = pretty_midi.PrettyMIDI(recording_path)
 
-        return midi.get_pitch_class_histogram()
+        match self.params.property:
+            case "energy":
+                cmp_metric = metrics.energy(recording_path)
+            case "pr_blur":
+                cmp_metric = metrics.blur_pr(midi, False)
+            case "pr_blur_c":
+                cmp_metric = metrics.blur_pr(midi)
+            case _:
+                cmp_metric = midi.get_pitch_class_histogram()
 
-    def find_most_similar_vector(self, target_vector):
-        """"""
-        console.log(f"{self.p} finding most similar vector to {target_vector}")
         most_similar_vector = None
-        highest_similarity = -1  # since cosine similarity ranges from -1 to 1
+        highest_similarity = -1.0  # since cosine similarity ranges from -1 to 1
         vector_array = [
             {"name": filename, "metric": details["properties"][self.params.property]}
             for filename, details in self.properties.items()
@@ -394,14 +401,21 @@ class Seeker:
 
         for vector_data in vector_array:
             name, vector = vector_data.values()
-            similarity = 1 - cosine(target_vector, vector)  # type: ignore
+            similarity = float(1 - cosine(cmp_metric, vector))  # type: ignore
             if similarity > highest_similarity:
                 highest_similarity = similarity
                 most_similar_vector = name
 
         console.log(
-            f"{self.p} found '{most_similar_vector}' with similarity {similarity:03f}"
+            f"{self.p} found '{most_similar_vector}' with similarity {highest_similarity:03f}"
         )
+
+        if self.params.calc_trans:
+            most_similar_vector, highest_similarity = self.pitch_transpose(
+                recording_path,
+                os.path.join(self.input_dir, str(most_similar_vector)),
+                highest_similarity,
+            )
 
         return most_similar_vector, highest_similarity
 
@@ -436,3 +450,85 @@ class Seeker:
             self.table = pd.read_parquet(parquet_path)
         else:
             self.table = None  # type: ignore
+
+    def get_prev(self, filename):
+        i_name, i_seg_num, i_shift = filename.split("_")
+        i_seg_start, i_seg_end = i_seg_num.split("-")
+        delta = int(i_seg_end) - int(i_seg_start)
+
+        if int(i_seg_start) == 0:
+            return None
+
+        prev_file = f"{i_name}_{int(i_seg_start) - delta:04d}-{i_seg_start}_{i_shift}"
+
+        for key in self.properties.keys():
+            k_name, k_seg_num, k_shift = key.split("_")
+            k_seg_start, k_seg_end = k_seg_num.split("-")
+
+            if (
+                k_name == i_name
+                and k_shift == i_shift
+                and abs(int(k_seg_end) - int(i_seg_start)) <= 2
+            ):
+                prev_file = key
+
+        return prev_file
+
+    def get_next(self, filename):
+        i_name, i_seg_num, i_shift = filename.split("_")
+        i_seg_start, i_seg_end = i_seg_num.split("-")
+        delta = int(i_seg_end) - int(i_seg_start)
+
+        next_file = f"{i_name}_{i_seg_end}-{int(i_seg_end) + delta:04d}_{i_shift}"
+        if next_file not in self.properties.keys():
+            next_file = None
+            for key in self.properties.keys():
+                k_name, k_seg_num, k_shift = key.split("_")
+                k_seg_start, k_seg_end = k_seg_num.split("-")
+
+                if (
+                    k_name == i_name
+                    and k_shift == i_shift
+                    and abs(int(k_seg_start) - int(i_seg_end)) <= 2
+                ):
+                    next_file = key
+
+        return next_file
+
+    def pitch_transpose(self, seed: str, match: str, similarity: float) -> Tuple[str, float]:
+        trans_options = [
+            "u01.mid",
+            "d01.mid",
+            "u02.mid",
+            "d02.mid",
+            "u03.mid",
+            "d03.mid",
+            "u04.mid",
+            "d04.mid",
+            "u05.mid",
+            "d05.mid",
+            "u06.mid",
+            "d06.mid",
+        ]
+
+        seed_ph = pretty_midi.PrettyMIDI(seed).get_pitch_class_histogram()
+        match_ph = pretty_midi.PrettyMIDI(match).get_pitch_class_histogram()
+        match_ph_sim = float(1 - cosine(seed_ph, match_ph))
+
+        # console.log(f"{self.p} unshifted match has similarity {match_ph_sim:.03f}")
+
+        best_match = os.path.basename(match)
+        best_sim = match_ph_sim
+
+        for transposition in trans_options:
+            t_file = match[:-7] + transposition
+            t_ph = pretty_midi.PrettyMIDI(t_file).get_pitch_class_histogram()
+            t_sim = float(1 - cosine(seed_ph, t_ph))
+
+            if t_sim > best_sim:
+                best_match = os.path.basename(t_file)
+                best_sim = t_sim
+
+                console.log(f"{self.p} \tbetter trans {transposition[:3]} -> '{os.path.basename(t_file)}' @ {t_sim:.03f}")
+
+        return best_match, best_sim

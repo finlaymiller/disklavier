@@ -17,3 +17,14 @@ seeker:
   ph_weight_dur: False
   ph_weight_vel: False
   property: "pitch_histogram"
+  probabilities:
+    - 0.05 # same file
+    - 0.05 # next segment in same track
+    - 0.05 # prev segment in same track
+    - 0.05 # 2nd next segment in same track
+    - 0.05 # 2nd prev segment in same track
+    - 0.15 # similar segment from another track
+    - 0.15
+    - 0.15
+    - 0.15
+    - 0.15
