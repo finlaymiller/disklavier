@@ -1,6 +1,8 @@
 inputs
 outputs
 data/playlist
+notebooks/tmp
+*.tar.gz
 
 .DS_STORE
 
