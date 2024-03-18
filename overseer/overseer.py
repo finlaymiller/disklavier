@@ -225,10 +225,10 @@ class Overseer:
                     # reset player
                     while not self.playlist_queue.qsize() == 0:
                         queued_file = self.playlist_queue.get()
-                        console.log(f"{self.p} removed queued segment: '{queued_file}'")
+                        console.log(f"{self.p}\tremoved queued segment: '{queued_file}'")
                         self.playlist_queue.task_done()
                     self.kill_player_event.set()
-                    console.log(f"{self.p} waiting for player to die")
+                    console.log(f"{self.p}\twaiting for player to die")
                     playback_thread.join()
                     self.kill_player_event.clear()
 
@@ -255,24 +255,24 @@ class Overseer:
 
                                 while not self.playlist_queue.qsize() == 0:
                                     queued_file, sim = self.playlist_queue.get()
-                                    console.log(f"{self.p} removed queued segment: '{queued_file}'")
+                                    console.log(f"{self.p}\tremoved queued segment: '{queued_file}'")
                                     self.playlist_queue.task_done()
 
                                 self.give_next_event.set()
 
                             case "BACK":
-                                console.log(f"rewinding")
+                                console.log(f"\trewinding")
 
                                 while not self.playlist_queue.qsize() == 0:
                                     queued_file, sim = self.playlist_queue.get()
-                                    console.log(f"{self.p} removed queued segment: '{queued_file}'")
+                                    console.log(f"{self.p}\tremoved queued segment: '{queued_file}'")
                                     self.playlist_queue.task_done()
 
                                 self.player.next_file_path = self.playlist[-1]
 
                                 self.give_next_event.set()
                             case _:
-                                console.log(f"{self.p} command unsupported '{command}'")
+                                console.log(f"{self.p}\tcommand unsupported '{command}'")
 
                         self.keypress_queue.task_done()
                     except:

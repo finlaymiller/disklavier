@@ -1,6 +1,6 @@
 import os
 import mido
-from mido import MidiFile
+from mido import MidiFile, Message
 from threading import Thread, Event
 from queue import Queue
 
@@ -8,9 +8,9 @@ from utils import console, tick
 
 
 class Player:
-    p = "[blue]play[/blue]  :"
-    playing_file_path = ''
-    next_file_path = ''
+    p = "[blue]player[/blue]:"
+    playing_file_path = ""
+    next_file_path = ""
     volume = 1.0  # volume scaling factor
     last_volume = 1.0  # memory
 
@@ -88,7 +88,7 @@ class Player:
             )
         for msg in midi.play():
             if hasattr(msg, "time"):
-                runtime += msg.time # type: ignore
+                runtime += msg.time  # type: ignore
 
             # check for keypresses
             while not self.commands.qsize() == 0:
@@ -140,13 +140,19 @@ class Player:
             self.playback_progress.put(msg.time)  # type: ignore
 
             if self.kill_event.is_set() and not printed_msg:
-                console.log(f"{self.p} [yellow]finishing playback of the current file")
-                do_fade = True
-                printed_msg = True
+                self.end_notes()
+                self.volume = 1.0
+                self.last_volume = 1.0
+                break
+                # console.log(f"{self.p} [yellow]finishing playback of the current file")
+                # do_fade = True
+                # printed_msg = True
 
         if self.do_tick:
             stop_tick.set()
             tick_thread.join()
+
+        # do_fade = False
 
     def fade(self, current_value, current_time, end_time):
         """
@@ -165,3 +171,8 @@ class Player:
         scaled_value = current_value * scaling_factor
 
         return scaled_value
+
+    def end_notes(self):
+        for note in range(128):  # MIDI notes range from 0 to 127
+            msg = Message("note_off", note=note, velocity=0, channel=0)
+            self.out_port.send(msg)
