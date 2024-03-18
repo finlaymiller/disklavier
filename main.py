@@ -122,9 +122,10 @@ if __name__ == "__main__":
         os.mkdir(playlist_dir)
     console.log(f"{p}[green bold] filesystem set up complete")
 
+    playback_tempo = 60
     if args.tempo:
-        # playback_tempo = check_tempo(args.tempo)
-        playback_tempo = args.tempo
+        playback_tempo = check_tempo(args.tempo)
+        # playback_tempo = args.tempo
 
     if args.velocity < 0.1 or args.velocity > 2.0:
         console.log(f"{p}[red] velocity argument is out of bounds\n{args.velocity} must be between [0.1, 2.0]")

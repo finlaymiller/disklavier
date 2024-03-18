@@ -1,0 +1,32 @@
+in_port: 'Disklavier'
+out_port: 'Disklavier'
+augment_recording: True # also check halved & doubled recording
+listener:
+  record: 67
+  reset: 66
+player:
+  loop_chance: 0.0
+  play_time: 6000
+  time_elapsed: 0
+  loop_time: 8
+seeker:
+  w1: 0.5 
+  w2: 0.5
+  bin_length: 1.0
+  ph_weight_dur: False
+  ph_weight_vel: False
+  property: "pitch_histogram"
+  # property: "pr_blur"
+  # property: "pr_blur_c"
+  calc_trans: False # needs to be True if using "pr_blur_c"
+  probabilities:
+    - 0.15 # same file
+    - 0.15 # next segment in same track
+    - 0.15 # prev segment in same track
+    - 0.15 # 2nd next segment in same track
+    - 0.15 # 2nd prev segment in same track
+    - 0.05 # similar segment from another track
+    - 0.05 # similar segment from another track
+    - 0.05 # similar segment from another track
+    - 0.05 # similar segment from another track
+    - 0.05 # similar segment from another track
