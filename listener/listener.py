@@ -24,7 +24,8 @@ class Listener:
         self.reset_event = reset_event
         self.kill_event = kill_event
 
-    def listen(self):
+    def listen(self) -> None:
+        """"""
         start_time = time.time()
         end_time = 0
         last_note_time = start_time
@@ -39,7 +40,9 @@ class Listener:
                 console.log(f"{self.p} \t{msg}")
                 last_note_time = current_time
 
+                # record pedal signal
                 if msg.type == "control_change" and msg.control == self.params.record:
+                    # record pedal released
                     if msg.value == 0:
                         end_time = time.time()
                         console.log(
@@ -56,8 +59,11 @@ class Listener:
                             self.ready_event.set()
                         else:
                             console.log(f"{self.p} no notes recorded")
+
+                    # record pedal not released, but not already recording
                     elif self.is_recording == False:
                         console.log(f"{self.p} recording at {self.params.tempo} BPM")
+                        self.reset_event.set()
                         self.is_recording = True
 
                         self.stop_tick_event = Event()
@@ -67,8 +73,8 @@ class Listener:
                             name="player",
                         )
                         self.metro_thread.start()
-                elif msg.type == "control_change" and msg.value == 0 and msg.control == self.params.reset:
-                    self.reset_event.set()
+
+                # record note on/off
                 elif self.is_recording and msg.type in ["note_on", "note_off"]:
                     if len(self.recorded_notes) == 0:
                         # set times to start from now
@@ -76,11 +82,14 @@ class Listener:
                         msg.time = 0
                     self.recorded_notes.append(msg)
 
+                # die
                 if self.kill_event.is_set():
                     console.log(f"{self.p} [orange]shutting down")
+                    self.stop_tick_event.set()
+                    self.metro_thread.join(1)
                     return
 
-    def save_midi(self, dt):
+    def save_midi(self, dt) -> None:
         """Saves the recorded notes to a MIDI file."""
         self.outfile = f"recording-{self.params.tempo:03d}-{datetime.now().strftime('%y%m%d_%H%M%S')}.mid"
         console.log(f"{self.p} saving recording '{self.outfile}'")

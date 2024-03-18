@@ -115,6 +115,8 @@ class Overseer:
         )
         controller_thread.start()
 
+        playback_thread = None
+        
         try:
             while True:
                 pass
@@ -151,7 +153,7 @@ class Overseer:
                                 recording_path = opt
                                 first_similarity = match_sim
                                 first_file = match_path
-
+ 
                                 if recording_path.endswith("fh.mid"):
                                     change = "first half"
                                 elif recording_path.endswith("sh.mid"):
@@ -229,10 +231,12 @@ class Overseer:
                             f"{self.p}\tremoved queued segment: '{queued_file}'"
                         )
                         self.playlist_queue.task_done()
-                    self.kill_player_event.set()
-                    console.log(f"{self.p}\twaiting for player to die")
-                    playback_thread.join()
-                    self.kill_player_event.clear()
+
+                    if playback_thread is not None:
+                        self.kill_player_event.set()
+                        console.log(f"{self.p}\twaiting for player to die")
+                        playback_thread.join()
+                        self.kill_player_event.clear()
 
                     # clear recording
                     self.listener.outfile = ""
