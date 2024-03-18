@@ -99,7 +99,7 @@ if __name__ == "__main__":
     # filesystem setup
     log_dir = os.path.join(args.output_dir, "logs")
     record_dir = os.path.join(args.output_dir, "records")
-    plot_dir = os.path.join(args.output_dir, "plots")
+    plot_dir = os.path.join(args.output_dir, "plots", f"{datetime.now().strftime('%y%m%d-%H%M')}")
     playlist_dir = os.path.join(
         "data", "playlist", datetime.now().strftime("%y%m%d-%H%M")
     )
@@ -115,10 +115,12 @@ if __name__ == "__main__":
     if not os.path.exists(plot_dir):
         console.log(f"{p} creating new plots folder: '{plot_dir}'")
         os.mkdir(plot_dir)
+    if not os.path.exists(os.path.join("data", "playlist")):
+        os.mkdir(os.path.join("data", "playlist"))
     if not os.path.exists(playlist_dir):
         console.log(f"{p} creating new playlist folder: '{playlist_dir}'")
         os.mkdir(playlist_dir)
-    console.log(f"{p}[green bold] filesystem is set up")
+    console.log(f"{p}[green bold] filesystem set up complete")
 
     if args.tempo:
         # playback_tempo = check_tempo(args.tempo)

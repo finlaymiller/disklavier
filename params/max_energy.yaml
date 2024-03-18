@@ -1,7 +1,8 @@
 in_port: 'from Max 1'
 out_port: 'to Max 1'
 listener:
-  ctrl: 67
+  record: 67
+  reset: 66
 player:
   loop_chance: 0.0
   play_time: 6000
@@ -14,6 +15,7 @@ seeker:
   ph_weight_dur: False
   ph_weight_vel: False
   property: "energy"
+  calc_trans: False
   note_spread: 55
   probabilities:
     - 0.05 # same file

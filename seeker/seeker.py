@@ -14,6 +14,7 @@ from rich.progress import (
 
 from utils import console
 import utils.metrics as metrics
+from utils.plot import plot_histograms
 
 from typing import Tuple
 
@@ -22,6 +23,21 @@ class Seeker:
     p = "[yellow]seeker[/yellow]:"
     table: pd.DataFrame
     properties = {}
+    count = 0
+    trans_options = [
+        "u01.mid",
+        "d01.mid",
+        "u02.mid",
+        "d02.mid",
+        "u03.mid",
+        "d03.mid",
+        "u04.mid",
+        "d04.mid",
+        "u05.mid",
+        "d05.mid",
+        "u06.mid",
+        "d06.mid",
+    ]
 
     def __init__(
         self, params, input_dir: str, output_dir: str, force_rebuild: bool = False
@@ -45,8 +61,9 @@ class Seeker:
 
         if os.path.exists(dict_file) and not self.force_rebuild:
             console.log(f"{self.p} found existing properties file '{dict_file}'")
-            with open(dict_file, "r") as f:
-                self.properties = json.load(f)
+            with console.status("loading properties file..."):
+                with open(dict_file, "r") as f:
+                    self.properties = json.load(f)
                 console.log(
                     f"{self.p} loaded properties for {len(list(self.properties.keys()))} files"
                 )
@@ -174,6 +191,18 @@ class Seeker:
             for filename, details in self.properties.items()
         ]
 
+        if self.params.property == "pr_blur_c":
+            vectors = [
+                {"name": v["name"], "metric": np.asarray(v["metric"]).flatten()}
+                for v in vectors
+                if v["name"].endswith("n00.mid")
+            ]
+        if self.params.property == "pr_blur":
+            vectors = [
+                {"name": v["name"], "metric": np.asarray(v["metric"]).flatten()}
+                for v in vectors
+            ]
+
         names = [v["name"] for v in vectors]
         vecs = [v["metric"] for v in vectors]
 
@@ -224,7 +253,7 @@ class Seeker:
                 i = int(self.table.index.get_loc(name))  # type: ignore
                 i_name, i_seg_num, i_shift = name.split("_")
                 i_seg_start, i_seg_end = i_seg_num.split("-")
-                i_track_name = f"{i_name}_{i_seg_num}"
+                # i_track_name = f"{i_name}_{i_seg_num}"
                 # console.print(i_name, i_seg_num, i_shift, i_seg_start, i_seg_end)
 
                 # populate first five columns
@@ -251,14 +280,14 @@ class Seeker:
                     # console.log(f"{self.p} checking col '{names[j]}'")
                     j = int(self.table.index.get_loc(other_name))  # type: ignore
                     j_name, j_seg_num, j_shift = other_name.split("_")
-                    j_seg_start, j_seg_end = j_seg_num.split("-")
-                    j_track_name = f"{j_name}_{j_seg_num}"
+                    # j_seg_start, j_seg_end = j_seg_num.split("-")
+                    # j_track_name = f"{j_name}_{j_seg_num}"
                     # console.print(j_name, j_seg_num, j_shift, j_seg_start, j_seg_end)
 
                     sim = float(1 - cosine(vecs[i], vecs[j]))
 
                     diff_track_range = range(n + 1, n * 2, 2)
-                    if i_track_name != j_track_name:  # clip is from a different track
+                    if i_name != j_name:  # clip is from a different track
                         self.replace_smallest_sim(
                             name,
                             other_name,
@@ -317,28 +346,31 @@ class Seeker:
 
         columns = list(self.table.columns[::2].values)
         roll = self.rng.choice(columns, p=self.probs)
-        # if columns.index(roll) > 5:
-        #     console.log(f"{self.p}[blue1] TRACK TRANSITION[/blue1] (rolled '{roll}')")
+        if columns.index(roll) > 5:
+            console.log(f"{self.p} \t[blue1]TRACK TRANSITION[/blue1] (rolled '{roll}')")
 
-        if self.params.calc_trans and not filename.endswith('n00.mid'):
-            filename = filename[:-7] + 'n00.mid'
+        if self.params.calc_trans and not filename.endswith("n00.mid"):
+            self.last_trans = filename[-7:]
+            filename = filename[:-7] + "n00.mid"
 
         next_filename = self.table.at[filename, f"{roll}"]
-        next_col = self.table.columns.get_loc(roll) + 1  # type: ignore
+
+        # next_col = self.table.columns.get_loc(roll) + 1  # type: ignore
         # console.log(
         #     f"{self.p} looking for similarity at ['{filename}', '{self.table.columns[next_col]}']\n\t",
         #     self.table.at[filename, self.table.columns[next_col]],
         # )
-        similarity = float(self.table.at[filename, self.table.columns[next_col]])
+        # similarity = float(self.table.at[filename, self.table.columns[next_col]])
 
         # when the source file is at the start or end of a track the prev/next
         # columns respectively can be None
-        while next_filename == None:
-            console.log(f"{self.p}[blue1] REROLL[/blue1] (rolled '{roll}')")
+        while next_filename == "" or next_filename == None:
+            console.log(f"{self.p} \t[blue1]REROLL[/blue1] (rolled '{roll}')")
             roll = self.rng.choice(columns, p=self.probs)
             next_filename = self.table.at[filename, f"{roll}"]
-            next_col = self.table.columns.get_loc(roll) + 1  # type: ignore
-            similarity = float(self.table.at[filename, self.table.columns[next_col]])
+
+        next_col = self.table.columns.get_loc(roll) + 1  # type: ignore
+        similarity = float(self.table.at[filename, self.table.columns[next_col]])
 
         # console.log(f"{self.p} rolled {roll}")
         # console.log(f"{self.p} columns\n{columns}")
@@ -370,7 +402,7 @@ class Seeker:
             )
 
         console.log(
-            f"{self.p} found '{next_filename}' with similarity {similarity:03f}"
+            f"{self.p} \tfound '{next_filename}' with similarity {similarity:03f}"
         )
 
         return next_filename, similarity
@@ -407,14 +439,12 @@ class Seeker:
                 most_similar_vector = name
 
         console.log(
-            f"{self.p} found '{most_similar_vector}' with similarity {highest_similarity:03f}"
+            f"{self.p} \tfound '{most_similar_vector}' with similarity {highest_similarity:03f}"
         )
 
         if self.params.calc_trans:
             most_similar_vector, highest_similarity = self.pitch_transpose(
-                recording_path,
-                os.path.join(self.input_dir, str(most_similar_vector)),
-                highest_similarity,
+                recording_path, os.path.join(self.input_dir, str(most_similar_vector))
             )
 
         return most_similar_vector, highest_similarity
@@ -495,40 +525,71 @@ class Seeker:
 
         return next_file
 
-    def pitch_transpose(self, seed: str, match: str, similarity: float) -> Tuple[str, float]:
-        trans_options = [
-            "u01.mid",
-            "d01.mid",
-            "u02.mid",
-            "d02.mid",
-            "u03.mid",
-            "d03.mid",
-            "u04.mid",
-            "d04.mid",
-            "u05.mid",
-            "d05.mid",
-            "u06.mid",
-            "d06.mid",
-        ]
+    def pitch_transpose(
+        self, seed: str, match: str, piano_roll_sim: float = -1.0
+    ) -> Tuple[str, float]:
 
         seed_ph = pretty_midi.PrettyMIDI(seed).get_pitch_class_histogram()
         match_ph = pretty_midi.PrettyMIDI(match).get_pitch_class_histogram()
         match_ph_sim = float(1 - cosine(seed_ph, match_ph))
+        # console.log(
+        #     f"{self.p} \tunshifted match ('{os.path.basename(seed)}' :: '{os.path.basename(match)}') has ph sim {match_ph_sim:.03f}"
+        # )
 
-        # console.log(f"{self.p} unshifted match has similarity {match_ph_sim:.03f}")
+        if piano_roll_sim > 0:
+            seed = seed[:-7] + self.last_trans
+            seed_ph = pretty_midi.PrettyMIDI(seed).get_pitch_class_histogram()
+            match_ph_sim = float(1 - cosine(seed_ph, match_ph))
+
+            # console.log(f"{self.p} \tshifted '{os.path.basename(seed)}' has ph sim {match_ph_sim:.03f}")
 
         best_match = os.path.basename(match)
         best_sim = match_ph_sim
 
-        for transposition in trans_options:
+        t_files = []
+        for transposition in self.trans_options:
             t_file = match[:-7] + transposition
+
+            # not all transposition options for each file will exist
+            if not os.path.exists(t_file):
+                continue
+
             t_ph = pretty_midi.PrettyMIDI(t_file).get_pitch_class_histogram()
             t_sim = float(1 - cosine(seed_ph, t_ph))
+            t_files.append((t_file, t_sim))
 
             if t_sim > best_sim:
                 best_match = os.path.basename(t_file)
                 best_sim = t_sim
 
-                console.log(f"{self.p} \tbetter trans {transposition[:3]} -> '{os.path.basename(t_file)}' @ {t_sim:.03f}")
+                console.log(
+                    f"{self.p} \tbetter tpos '{os.path.basename(t_file)}' @ sim {t_sim:.03f}"
+                )
+
+        # plot_histograms(
+        #     [seed_ph, match_ph],
+        #     [os.path.basename(f) for f in [seed, match]],
+        #     os.path.join(
+        #         self.output_dir,
+        #         "plots",
+        #         "_test",
+        #         f"{self.count}-{os.path.basename(seed)[:-4]}-src.png",
+        #     ),
+        #     (2, 1),
+        #     f"neutral sim = {match_ph_sim:.03f}",
+        # )
+        # plot_histograms(
+        #     [pretty_midi.PrettyMIDI(f).get_pitch_class_histogram() for f, _ in t_files],
+        #     [f"{os.path.basename(f)[-7:-4]} ({s:.02f})" for f, s in t_files],
+        #     os.path.join(
+        #         self.output_dir,
+        #         "plots",
+        #         "_test",
+        #         f"{self.count}-{os.path.basename(seed)[:-4]}-phs.png",
+        #     ),
+        #     (4, 3),
+        #     f"best match: {os.path.basename(best_match)[:-4]}",
+        # )
+        self.count += 1
 
         return best_match, best_sim

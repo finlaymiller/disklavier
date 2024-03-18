@@ -16,11 +16,12 @@ class Listener:
     outfile: str = ""
 
     def __init__(
-        self, params, record_dir: str, rec_event: Event, kill_event: Event
+        self, params, record_dir: str, rec_event: Event, kill_event: Event, reset_event: Event
     ) -> None:
         self.params = params
         self.record_dir = record_dir
         self.ready_event = rec_event
+        self.reset_event = reset_event
         self.kill_event = kill_event
 
     def listen(self):
@@ -28,23 +29,21 @@ class Listener:
         end_time = 0
         last_note_time = start_time
 
-        dtpb = 480
-
         with mido.open_input(self.params.in_port) as inport:  # type: ignore
-            console.log(f"{self.p} listening at {dtpb} ticks per beat")
+            console.log(f"{self.p} listening on port '{self.params.in_port}'")
             for msg in inport:
                 # record delta time of input message
                 # mido doesn't do this by default for some reason
                 current_time = time.time()
-                msg.time = int((current_time - last_note_time) * dtpb)
+                msg.time = int((current_time - last_note_time) * 480)
                 console.log(f"{self.p} \t{msg}")
                 last_note_time = current_time
 
-                if msg.type == "control_change" and msg.control == self.params.ctrl:
+                if msg.type == "control_change" and msg.control == self.params.record:
                     if msg.value == 0:
                         end_time = time.time()
                         console.log(
-                            f"{self.p} stopping recording after {end_time - start_time:.02f} s"
+                            f"{self.p} recorded {end_time - start_time:.02f} s"
                         )
                         self.is_recording = False
 
@@ -68,6 +67,8 @@ class Listener:
                             name="player",
                         )
                         self.metro_thread.start()
+                elif msg.type == "control_change" and msg.value == 0 and msg.control == self.params.reset:
+                    self.reset_event.set()
                 elif self.is_recording and msg.type in ["note_on", "note_off"]:
                     if len(self.recorded_notes) == 0:
                         # set times to start from now
