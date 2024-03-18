@@ -9,6 +9,7 @@ from pathlib import Path
 DARK = True
 SEMITONES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
+
 def plot_images(
     images,
     titles,
@@ -53,7 +54,6 @@ def draw_histogram(histogram, title="Pitch Histogram") -> None:
     plt.xticks(
         range(12), ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
     )
-    plt.show()
 
 
 def draw_piano_roll(piano_roll, fs=100, title="Piano Roll") -> None:
@@ -71,8 +71,6 @@ def draw_piano_roll(piano_roll, fs=100, title="Piano Roll") -> None:
     tick_spacing = 1
     ticks = np.arange(0, len(piano_roll.T) / fs, tick_spacing)
     plt.xticks(ticks * fs, labels=[f"{tick:.1f}" for tick in ticks])
-
-    plt.show()
 
 
 def plot_piano_roll_and_pitch_histogram(input_path: str, output_dir: str) -> None:
@@ -142,4 +140,3 @@ def plot_pr_hists(midi: PrettyMIDI, energy_hist, title) -> None:
     ax3.set_xticks(range(12), SEMITONES)
 
     plt.tight_layout()
-    plt.show()

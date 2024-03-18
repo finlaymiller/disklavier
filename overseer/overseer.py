@@ -1,5 +1,6 @@
 import os
 import mido
+from pynput import keyboard
 from queue import Queue
 from threading import Thread, Event
 from datetime import datetime
@@ -9,20 +10,25 @@ from pretty_midi import PrettyMIDI
 from player.player import Player
 from listener.listener import Listener
 from seeker.seeker import Seeker
+from controller.controller import Controller
 
 from utils import console
-import utils.midi as um
+from utils.midi import augment_recording
+from utils.metrics import scale_vels
 from utils.plot import plot_images, plot_piano_roll_and_pitch_histogram
 
 
 class Overseer:
     p = "[green]ovrsee[/green]:"
     playing_file = ""
+    playlist = []
+    do_loop = False
 
     def __init__(
         self,
         params,
         args,
+        playlist_dir: str,
         record_dir: str,
         plot_dir: str,
         tempo: int,
@@ -30,22 +36,17 @@ class Overseer:
         console.log(f"{self.p} initializing")
 
         self.params = params
-        self.data_dir = args.data_dir
-        self.output_dir = args.output_dir
+        self.playlist_dir = playlist_dir
         self.record_dir = record_dir
         self.plot_dir = plot_dir
-        self.tempo = tempo
+        self.data_dir = args.data_dir
+        self.output_dir = args.output_dir
         self.kickstart = args.kickstart
         self.v_scale = args.velocity
-        self.params.listener.tempo = self.tempo
+        self.do_plot = args.plot
+        self.tempo = tempo
         self.params.player.tempo = self.tempo
-        self.iter = 0
-
-        plot_dir = f"{datetime.now().strftime('%y%m%d-%H%M')}"
-
-        if not os.path.exists(os.path.join(self.plot_dir, plot_dir)):
-            os.mkdir(os.path.join(self.plot_dir, plot_dir))
-        self.plot_dir = os.path.join(self.plot_dir, plot_dir)
+        self.params.listener.tempo = self.tempo
 
         # self._init_midi()  # make sure MIDI port is available first
         if len(os.listdir(self.data_dir)) < 10:
@@ -54,11 +55,16 @@ class Overseer:
             )
 
         # set up events & queues for threading
-        self.kill_event = Event()
+        self.reset_event = Event()
+        self.kill_player_event = Event()
+        self.kill_listener_event = Event()
+        self.kill_controller_event = Event()
         self.give_next_event = Event()
         self.recording_ready_event = Event()
+        self.playback_commmand_queue = Queue()
         self.playlist_queue = Queue()
         self.progress_queue = Queue()
+        self.keypress_queue = Queue()
 
         # initialize objects to be overseen
         self.seeker = Seeker(
@@ -66,22 +72,25 @@ class Overseer:
         )
         self.seeker.build_properties()
         self.seeker.build_top_n_table()
-        # self.seeker.build_similarity_table()
+
         self.listener = Listener(
             self.params.listener,
             self.record_dir,
             self.recording_ready_event,
-            self.kill_event,
+            self.kill_listener_event,
+            self.reset_event,
         )
         self.player = Player(
             self.params.player,
             self.record_dir,
             args.tick,
-            self.kill_event,
+            self.kill_player_event,
             self.give_next_event,
             self.playlist_queue,
             self.progress_queue,
+            self.playback_commmand_queue,
         )
+        self.controller = Controller(self.kill_controller_event, self.keypress_queue)
 
     def start(self) -> None:
         """run the system"""
@@ -100,8 +109,14 @@ class Overseer:
             )
             listen_thread.start()
 
+        controller_thread = Thread(
+            target=self.controller.run, args=(), name="controller"
+        )
+        controller_thread.start()
+
         try:
             while True:
+                pass
                 # check for recordings
                 if self.recording_ready_event.is_set():
                     # get recording
@@ -117,30 +132,65 @@ class Overseer:
                         f"{self.p} triggering playback from recording '{recording_path}'"
                     )
 
-                    # get most similar file to recording
-                    recorded_ph = self.seeker.midi_to_ph(recording_path)
-                    first_link = self.seeker.find_most_similar_vector(recorded_ph)
-                    next_file_path = os.path.join(self.data_dir, str(first_link[0]))
-                    next_file_path = self.change_tempo(next_file_path)
-
-                    # save plots of both PHs
-                    plot_dir = f"pr_ph_{datetime.now().strftime('%y%m%d-%H%M%S')}"
-                    plot_path = os.path.join(self.output_dir, "plots", plot_dir)
-
-                    if os.path.exists(plot_path):
-                        plot_path += "_2"
-                    os.mkdir(plot_path)
-                    plot_piano_roll_and_pitch_histogram(recording_path, plot_path)
-                    plot_piano_roll_and_pitch_histogram(next_file_path, plot_path)
-
                     # start up player
-                    self.playlist_queue.put((next_file_path, float(first_link[1])))
+                    self.playlist.append(recording_path)
                     playback_thread = Thread(
                         target=self.player.playback_loop,
-                        args=(recording_path, recorded_ph),
+                        args=(recording_path, "a"),
                         name="player",
                     )
                     playback_thread.start()
+
+                    # get most similar file to recording
+                    first_file, first_similarity = self.seeker.get_ms_to_recording(
+                        recording_path
+                    )
+                    # check augments for any better matches
+                    if self.params.augment_recording:
+                        options = augment_recording(
+                            recording_path, self.plot_dir, self.tempo
+                        )
+
+                        change = None
+                        for opt in options:
+                            match_path, match_sim = self.seeker.get_ms_to_recording(opt)
+
+                            if match_sim > first_similarity:
+                                recording_path = opt
+                                first_similarity = match_sim
+                                first_file = match_path
+
+                                if recording_path.endswith("fh.mid"):
+                                    change = "first half"
+                                elif recording_path.endswith("sh.mid"):
+                                    change = "second half"
+                                elif recording_path.endswith("db.mid"):
+                                    change = "doubled"
+
+                        if change is not None:
+                            console.log(
+                                f"{self.p} using alt version of recording :: [bold deep_pink3]{change}[/bold deep_pink3] :: {recording_path}"
+                            )
+                            self.playlist_queue.put((recording_path, -1.0))
+                            self.playlist.append(recording_path)
+
+                    next_file_path = os.path.join(self.data_dir, str(first_file))
+                    next_file_path = self.change_tempo(next_file_path)
+                    self.playlist_queue.put((next_file_path, first_similarity))
+                    self.playlist.append(next_file_path)
+
+                    # while not self.playlist_queue.qsize() == 0:
+                    #     queued_file = self.playlist_queue.get()
+                    #     console.log(f"{self.p} removed queued segment: '{queued_file}'")
+                    #     self.playlist_queue.task_done()
+                    # save plots of both PHs
+                    # plot_dir = f"pr_ph_{datetime.now().strftime('%y%m%d-%H%M%S')}"
+                    # plot_path = os.path.join(self.output_dir, "plots", plot_dir)
+                    # if os.path.exists(plot_path):
+                    #     plot_path += "_2"
+                    # os.mkdir(plot_path)
+                    # plot_piano_roll_and_pitch_histogram(recording_path, plot_path)
+                    # plot_piano_roll_and_pitch_histogram(next_file_path, plot_path)
 
                     # clear recording
                     self.listener.outfile = ""
@@ -151,9 +201,11 @@ class Overseer:
                 if self.give_next_event.is_set():
                     # get and prep next file
                     # next_file, similarity = self.seeker.get_most_similar_file(
-                    next_file, similarity = self.seeker.get_msf_new(
-                        os.path.basename(next_file_path)
-                    )
+                    next_file, similarity = (self.player.playing_file, 1.0)
+                    if not self.do_loop:
+                        next_file, similarity = self.seeker.get_msf_new(
+                            os.path.basename(next_file_path)
+                        )
                     next_file_path = os.path.join(self.data_dir, str(next_file))
                     next_file_path = self.change_tempo(next_file_path)
                     # console.log(f"{self.p} player is playing '{self.player.playing_file}'\t(next up is '{next_file_path}')")
@@ -164,19 +216,91 @@ class Overseer:
                         f"{self.p} added next file '{next_file}' to queue with similarity {similarity:.03f}"
                     )
 
+                    self.playlist.append(next_file_path)
                     self.give_next_event.clear()
 
-                    self.iter += 1
+                if self.reset_event.is_set():
+                    console.log(f"{self.p} [bold deep_pink3]RESETTING")
 
-        except KeyboardInterrupt:  # CTRL+C caught
+                    # reset player
+                    while not self.playlist_queue.qsize() == 0:
+                        queued_file = self.playlist_queue.get()
+                        console.log(f"{self.p} removed queued segment: '{queued_file}'")
+                        self.playlist_queue.task_done()
+                    self.kill_player_event.set()
+                    console.log(f"{self.p} waiting for player to die")
+                    playback_thread.join()
+                    self.kill_player_event.clear()
+
+                    # clear recording
+                    self.listener.outfile = ""
+                    self.listener.recorded_notes = []
+                    self.recording_ready_event.clear()
+
+                    self.reset_event.clear()
+                    console.log(f"{self.p} reset complete")
+
+                # check for keypresses
+                while not self.keypress_queue.qsize() == 0:
+                    try:
+                        command = self.keypress_queue.get()
+                        console.log(f"{self.p} got key command '{command}'")
+                        match command:
+                            case "FADE" | "MUTE" | "VOL DOWN" | "VOL UP":
+                                self.playback_commmand_queue.put(command)
+                            case "LOOP":
+                                self.do_loop = not self.do_loop
+
+                                self.player.next_file_path = self.player.playing_file_path
+
+                                while not self.playlist_queue.qsize() == 0:
+                                    queued_file, sim = self.playlist_queue.get()
+                                    console.log(f"{self.p} removed queued segment: '{queued_file}'")
+                                    self.playlist_queue.task_done()
+
+                                self.give_next_event.set()
+
+                            case "BACK":
+                                console.log(f"rewinding")
+
+                                while not self.playlist_queue.qsize() == 0:
+                                    queued_file, sim = self.playlist_queue.get()
+                                    console.log(f"{self.p} removed queued segment: '{queued_file}'")
+                                    self.playlist_queue.task_done()
+
+                                self.player.next_file_path = self.playlist[-1]
+
+                                self.give_next_event.set()
+                            case _:
+                                console.log(f"{self.p} command unsupported '{command}'")
+
+                        self.keypress_queue.task_done()
+                    except:
+                        console.log(f"{self.p} [bold orange]whoops")
+
+        except KeyboardInterrupt:  # ctrl + c
             # end threads
-            console.log(f"{self.p} [red]CTRL + C detected, shutting down")
-            self.kill_event.set()
+            console.log(f"{self.p} [red bold]CTRL + C detected, shutting down")
 
-            playback_thread.join()
-            console.log(f"{self.p} player killed successfully")
-            listen_thread.join()
-            console.log(f"{self.p} listener killed successfully")
+            with open(os.path.join(self.playlist_dir, "playlist.txt"), "a") as f:
+                for sample in self.playlist:
+                    f.write(f"{sample}\n")
+
+            self.kill_controller_event.set()
+            self.kill_player_event.set()
+            self.kill_listener_event.set()
+
+            if controller_thread.is_alive():
+                controller_thread.join()
+                console.log(f"{self.p} controller killed successfully")
+
+            if playback_thread is not None:
+                playback_thread.join()
+                console.log(f"{self.p} player killed successfully")
+
+            if listen_thread is not None:
+                listen_thread.join()
+                console.log(f"{self.p} listener killed successfully")
 
     def _init_midi(self) -> None:
         """initialize the MIDI system based on the connections specified in
@@ -244,7 +368,6 @@ class Overseer:
             # remove existing set_tempo messages
             for msg in track:
                 if msg.type == "set_tempo":
-                    # track.remove(msg)
                     track.remove(msg)
                     # console.log(f"{self.p} [red]removed set tempo message", msg)
 
@@ -263,7 +386,7 @@ class Overseer:
             new_track.append(new_message)
 
         new_file_path = os.path.join(
-            "data", "playlist", f"{Path(midi_file_path).stem}.mid"
+            self.playlist_dir, f"{Path(midi_file_path).stem}.mid"
         )
         midi.save(new_file_path)
 
@@ -289,32 +412,34 @@ class Overseer:
         # console.log(f"{self.p} expected len {segment_length:.04f} but found {midi.length:.04f} and calcd {mido.tick2second(total_time_t, 220, mido.bpm2tempo(file_bpm))}")
 
         # scale velocities
-        if self.v_scale != 1.0 :
-            new_pm = PrettyMIDI(new_file_path)
-            os.remove(new_file_path)
-            [[v_min_o, v_max_o], v_hist_o] = um.get_velocities(new_pm)
-            scaled_midi = um.scale_vels(new_pm, self.v_scale)
-            [[v_min_i, v_max_i], v_hist_i] = um.get_velocities(scaled_midi)
-            console.log(
-                f"{self.p} scaled by factor {self.v_scale} ({v_min_o}, {v_max_o}) -> ({v_min_i}, {v_max_i})\n{v_hist_o} -> {v_hist_i}"
-            )
-            scaled_midi.write(new_file_path)
+        # if self.v_scale != 1.0 :
+        #     new_pm = PrettyMIDI(new_file_path)
+        #     os.remove(new_file_path)
+        #     [[v_min_o, v_max_o], v_hist_o] = um.get_velocities(new_pm)
+        #     scaled_midi = scale_vels(new_pm, self.v_scale)
+        #     [[v_min_i, v_max_i], v_hist_i] = um.get_velocities(scaled_midi)
+        #     console.log(
+        #         f"{self.p} scaled by factor {self.v_scale} ({v_min_o}, {v_max_o}) -> ({v_min_i}, {v_max_i})\n{v_hist_o} -> {v_hist_i}"
+        #     )
+        #     scaled_midi.write(new_file_path)
 
         # old_path = os.path.join(self.plot_dir, os.path.basename(midi_file_path))
-        old_pr = PrettyMIDI(midi_file_path).get_piano_roll()
-        new_pr = PrettyMIDI(new_file_path).get_piano_roll()
-        plot_path = os.path.join(self.plot_dir, f"loop {self.iter}.png")
+        if self.do_plot:
+            old_pr = PrettyMIDI(midi_file_path).get_piano_roll()
+            new_pr = PrettyMIDI(new_file_path).get_piano_roll()
+            plot_path = os.path.join(
+                self.plot_dir, f"{os.path.basename(midi_file_path)[-4:]}.png"
+            )
 
-        plot_images(
-            [old_pr, new_pr],
-            [
-                f"{os.path.basename(midi_file_path)} ({midi.length:.02f}s)",
-                f"{os.path.basename(new_file_path)} ({new_midi.length:.02f}s)",
-            ],
-            plot_path,
-            (2, 1),
-            main_title=f"loop {self.iter}",
-            set_axis="on",
-        )
+            plot_images(
+                [old_pr, new_pr],
+                [
+                    f"{os.path.basename(midi_file_path)} ({midi.length:.02f}s)",
+                    f"{os.path.basename(new_file_path)} ({new_midi.length:.02f}s)",
+                ],
+                plot_path,
+                (2, 1),
+                set_axis="on",
+            )
 
         return new_file_path

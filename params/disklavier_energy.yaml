@@ -1,5 +1,5 @@
-in_port: 'from Max 1'
-out_port: 'to Max 1'
+in_port: 'Disklavier'
+out_port: 'Disklavier'
 listener:
   record: 67
   reset: 66
@@ -11,12 +11,11 @@ player:
 seeker:
   w1: 0.5 
   w2: 0.5
-  bin_length: 1
+  bin_length: 1.0
   ph_weight_dur: False
   ph_weight_vel: False
   property: "energy"
   calc_trans: False
-  note_spread: 55
   probabilities:
     - 0.05 # same file
     - 0.05 # next segment in same track

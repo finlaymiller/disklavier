@@ -1,8 +1,9 @@
 inputs
 outputs
-data/playlist
+data/playlist/*
 notebooks/tmp
 runs
+*.tar.gz
 
 .DS_STORE
 

@@ -1,7 +1,9 @@
 in_port: 'Disklavier'
 out_port: 'Disklavier'
+augment_recording: True
 listener:
-  ctrl: 67
+  record: 67
+  reset: 66
 player:
   loop_chance: 0.0
   play_time: 6000
@@ -14,6 +16,7 @@ seeker:
   ph_weight_dur: False
   ph_weight_vel: False
   property: "pitch_histogram"
+  calc_trans: False
   probabilities:
     - 0.05 # same file
     - 0.05 # next segment in same track

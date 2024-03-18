@@ -13,7 +13,9 @@ from rich.progress import (
 )
 
 from utils import console
-from utils.metrics import all_properties
+import utils.metrics as metrics
+
+from typing import Tuple
 
 
 class Seeker:
@@ -29,22 +31,11 @@ class Seeker:
         self.input_dir = input_dir
         self.output_dir = output_dir
         self.force_rebuild = force_rebuild
-
-        # self.probs = [
-        #     1 / 5,  # same
-        #     1 / 6,  # next 1
-        #     1 / 6,  # prev 1
-        #     1 / 10,  # next 2
-        #     1 / 10,  # prev 2
-        #     0.0533,  # diff 1
-        #     0.0533,  # diff 2
-        #     0.0533,  # diff 3
-        #     0.0533,  # diff 4
-        # ]
-        # self.probs.append(1 - sum(self.probs))  # add diff 5
         self.probs = self.params.probabilities
         self.cumprobs = np.cumsum(self.probs)
         self.rng = np.random.default_rng(1)
+
+        console.log(f"{self.p} initialized to use metric '{self.params.property}'")
 
     def build_properties(self) -> None:
         dict_file = os.path.join(
@@ -54,8 +45,9 @@ class Seeker:
 
         if os.path.exists(dict_file) and not self.force_rebuild:
             console.log(f"{self.p} found existing properties file '{dict_file}'")
-            with open(dict_file, "r") as f:
-                self.properties = json.load(f)
+            with console.status("loading properties file..."):
+                with open(dict_file, "r") as f:
+                    self.properties = json.load(f)
                 console.log(
                     f"{self.p} loaded properties for {len(list(self.properties.keys()))} files"
                 )
@@ -68,7 +60,7 @@ class Seeker:
                 if file.endswith(".mid") or file.endswith(".midi"):
                     file_path = os.path.join(self.input_dir, file)
                     midi = pretty_midi.PrettyMIDI(file_path)
-                    properties = all_properties(file_path, file, self.params)
+                    properties = metrics.all_properties(file_path, file, self.params)
                     self.properties[file] = {
                         "filename": file,
                         "properties": properties,
@@ -149,13 +141,6 @@ class Seeker:
         self.load_similarities(parquet)
 
         if self.table is not None:
-            # column_labels = [
-            #     [f"{prob}-{i + 1}", f"sim-{i + 1}"] for i, prob in enumerate(self.probs)
-            # ]
-            # column_labels = [label for sublist in column_labels for label in sublist]
-            # console.log(f"{self.p} swapping probs to:\n", column_labels)
-            # self.table.columns = column_labels
-
             console.log(
                 f"{self.p} loaded existing similarity file from '{parquet}' ({self.table.shape})\n",
                 self.table.columns,
@@ -166,7 +151,7 @@ class Seeker:
 
         if n % 2:
             console.log(
-                f"{self.p} [yellow]uneven value passed in for n ([/yellow]{n}[yellow]), rounding down"
+                f"{self.p} [yellow]odd value passed in for n ([/yellow]{n}[yellow]), rounding down"
             )
             n -= 1
 
@@ -244,11 +229,10 @@ class Seeker:
                 i = int(self.table.index.get_loc(name))  # type: ignore
                 i_name, i_seg_num, i_shift = name.split("_")
                 i_seg_start, i_seg_end = i_seg_num.split("-")
-                i_track_name = f"{i_name}_{i_seg_num}"
+                # i_track_name = f"{i_name}_{i_seg_num}"
                 # console.print(i_name, i_seg_num, i_shift, i_seg_start, i_seg_end)
 
                 # populate first five columns
-                same_track_range = range(2, n, 2)
                 # get prev file(s)
                 prv2_file = None
                 prev_file = self.get_prev(name)
@@ -262,9 +246,9 @@ class Seeker:
                 if next_file:
                     nxt2_file = self.get_next(next_file)
 
-                names = [prev_file, next_file, prv2_file, nxt2_file]
+                names = [name, prev_file, next_file, prv2_file, nxt2_file]
 
-                for j, k in zip(same_track_range, names):
+                for j, k in zip(range(0, n, 2), names):
                     self.table.iat[i, j] = k
 
                 # update second five columns
@@ -272,14 +256,14 @@ class Seeker:
                     # console.log(f"{self.p} checking col '{names[j]}'")
                     j = int(self.table.index.get_loc(other_name))  # type: ignore
                     j_name, j_seg_num, j_shift = other_name.split("_")
-                    j_seg_start, j_seg_end = j_seg_num.split("-")
-                    j_track_name = f"{j_name}_{j_seg_num}"
+                    # j_seg_start, j_seg_end = j_seg_num.split("-")
+                    # j_track_name = f"{j_name}_{j_seg_num}"
                     # console.print(j_name, j_seg_num, j_shift, j_seg_start, j_seg_end)
 
-                    sim = float(1 - cosine(vecs[i], vecs[j])) if i != j else 1.0
+                    sim = float(1 - cosine(vecs[i], vecs[j]))
 
                     diff_track_range = range(n + 1, n * 2, 2)
-                    if i_track_name != j_track_name:  # clip is from a different track
+                    if i_name != j_name:  # clip is from a different track
                         self.replace_smallest_sim(
                             name,
                             other_name,
@@ -336,13 +320,30 @@ class Seeker:
 
         self.properties[filename]["played"] += 1  # mark current file as played
 
-        # columns = self.table.columns[::2].insert(0, 0)
         columns = list(self.table.columns[::2].values)
         roll = self.rng.choice(columns, p=self.probs)
         if columns.index(roll) > 5:
             console.log(f"{self.p}[blue1] TRACK TRANSITION[/blue1] (rolled '{roll}')")
 
-            # console.log(f"{self.p} options: ", self.table.loc[filename])
+        if self.params.calc_trans and not filename.endswith('n00.mid'):
+            filename = filename[:-7] + 'n00.mid'
+
+        next_filename = self.table.at[filename, f"{roll}"]
+        next_col = self.table.columns.get_loc(roll) + 1  # type: ignore
+        # console.log(
+        #     f"{self.p} looking for similarity at ['{filename}', '{self.table.columns[next_col]}']\n\t",
+        #     self.table.at[filename, self.table.columns[next_col]],
+        # )
+        similarity = float(self.table.at[filename, self.table.columns[next_col]])
+
+        # when the source file is at the start or end of a track the prev/next
+        # columns respectively can be None
+        while next_filename == None:
+            console.log(f"{self.p}[blue1] REROLL[/blue1] (rolled '{roll}')")
+            roll = self.rng.choice(columns, p=self.probs)
+            next_filename = self.table.at[filename, f"{roll}"]
+            next_col = self.table.columns.get_loc(roll) + 1  # type: ignore
+            similarity = float(self.table.at[filename, self.table.columns[next_col]])
 
         # console.log(f"{self.p} rolled {roll}")
         # console.log(f"{self.p} columns\n{columns}")
@@ -365,13 +366,13 @@ class Seeker:
 
         #         break
 
-        next_filename = self.table.at[filename, f"{roll}"]
-        next_col = self.table.columns.get_loc(roll) + 1  # type: ignore
-        # console.log(
-        #     f"{self.p} looking for similarity at ['{filename}', '{self.table.columns[next_col]}']\n\t",
-        #     self.table.at[filename, self.table.columns[next_col]],
-        # )
-        similarity = float(self.table.at[filename, self.table.columns[next_col]])
+        # check transposition if using centered blur
+        if self.params.calc_trans:
+            next_filename, similarity = self.pitch_transpose(
+                os.path.join(self.input_dir, filename),
+                os.path.join(self.input_dir, next_filename),
+                similarity,
+            )
 
         console.log(
             f"{self.p} found '{next_filename}' with similarity {similarity:03f}"
@@ -379,19 +380,25 @@ class Seeker:
 
         return next_filename, similarity
 
-    def midi_to_ph(self, midi_file: str):
-        """"""
-        console.log(f"{self.p} calculating pitch histogram for '{midi_file}'")
+    def get_ms_to_recording(self, recording_path: str) -> Tuple[str | None, float]:
+        console.log(
+            f"{self.p} finding most similar vector to '{recording_path}' with metric {self.params.property}"
+        )
 
-        midi = pretty_midi.PrettyMIDI(midi_file)
+        midi = pretty_midi.PrettyMIDI(recording_path)
 
-        return midi.get_pitch_class_histogram()
+        match self.params.property:
+            case "energy":
+                cmp_metric = metrics.energy(recording_path)
+            case "pr_blur":
+                cmp_metric = metrics.blur_pr(midi, False)
+            case "pr_blur_c":
+                cmp_metric = metrics.blur_pr(midi)
+            case _:
+                cmp_metric = midi.get_pitch_class_histogram()
 
-    def find_most_similar_vector(self, target_vector):
-        """"""
-        console.log(f"{self.p} finding most similar vector to {target_vector}")
         most_similar_vector = None
-        highest_similarity = -1  # since cosine similarity ranges from -1 to 1
+        highest_similarity = -1.0  # since cosine similarity ranges from -1 to 1
         vector_array = [
             {"name": filename, "metric": details["properties"][self.params.property]}
             for filename, details in self.properties.items()
@@ -399,14 +406,22 @@ class Seeker:
 
         for vector_data in vector_array:
             name, vector = vector_data.values()
-            similarity = 1 - cosine(target_vector, vector)  # type: ignore
+            similarity = float(1 - cosine(cmp_metric, vector))  # type: ignore
             if similarity > highest_similarity:
                 highest_similarity = similarity
                 most_similar_vector = name
 
         console.log(
-            f"{self.p} found '{most_similar_vector}' with similarity {similarity:03f}"
+            f"{self.p} found '{most_similar_vector}' with similarity {highest_similarity:03f}"
         )
+
+
+        if self.params.calc_trans:
+            most_similar_vector, highest_similarity = self.pitch_transpose(
+                recording_path,
+                os.path.join(self.input_dir, str(most_similar_vector)),
+                highest_similarity,
+            )
 
         return most_similar_vector, highest_similarity
 
@@ -485,3 +500,41 @@ class Seeker:
                     next_file = key
 
         return next_file
+
+    def pitch_transpose(self, seed: str, match: str, similarity: float) -> Tuple[str, float]:
+        trans_options = [
+            "u01.mid",
+            "d01.mid",
+            "u02.mid",
+            "d02.mid",
+            "u03.mid",
+            "d03.mid",
+            "u04.mid",
+            "d04.mid",
+            "u05.mid",
+            "d05.mid",
+            "u06.mid",
+            "d06.mid",
+        ]
+
+        seed_ph = pretty_midi.PrettyMIDI(seed).get_pitch_class_histogram()
+        match_ph = pretty_midi.PrettyMIDI(match).get_pitch_class_histogram()
+        match_ph_sim = float(1 - cosine(seed_ph, match_ph))
+
+        # console.log(f"{self.p} unshifted match has similarity {match_ph_sim:.03f}")
+
+        best_match = os.path.basename(match)
+        best_sim = match_ph_sim
+
+        for transposition in trans_options:
+            t_file = match[:-7] + transposition
+            t_ph = pretty_midi.PrettyMIDI(t_file).get_pitch_class_histogram()
+            t_sim = float(1 - cosine(seed_ph, t_ph))
+
+            if t_sim > best_sim:
+                best_match = os.path.basename(t_file)
+                best_sim = t_sim
+
+                console.log(f"{self.p} \tbetter trans {transposition[:3]} -> '{os.path.basename(t_file)}' @ {t_sim:.03f}")
+
+        return best_match, best_sim

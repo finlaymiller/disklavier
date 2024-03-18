@@ -1,5 +1,5 @@
 import os
-from pretty_midi import PrettyMIDI
+from pretty_midi import PrettyMIDI, Instrument, Note
 import mido
 from mido import MidiFile, MetaMessage
 import numpy as np
@@ -39,7 +39,7 @@ def blur_pr(midi: PrettyMIDI, do_center: bool = True, delta_max: int = 55):
     pr = midi.get_piano_roll()
     if do_center:
         pr = strip_and_pad(pr, delta_max)
-    filter = np.full((3, 3), 0.5)
+    filter = np.full((3, 3), 1 / 9)
     width = 64
     height = int(pr.shape[0] / 4)
     small_img = cv2.resize(pr, (width, height), interpolation=cv2.INTER_AREA)
@@ -60,7 +60,7 @@ def strip_and_pad(pr, h_max):
     padded_pr = np.pad(
         trimmed_pr,
         ((top_padding, bottom_padding), (0, 0)),
-        mode="constant", # type: ignore
+        mode="constant",  # type: ignore
         constant_values=0,
     )
 
@@ -112,7 +112,7 @@ def stretch_midi_file(
 ) -> MidiFile:
     """"""
     console.log(
-        f"{caller} rescaling file from {midi.length:.02f} s to {new_duration_seconds:.02f} s (x{new_duration_seconds / midi.length:.03f})"
+        f"{caller} rescaling file from {midi.length:.02f} s to {new_duration_seconds:.02f} s (x {new_duration_seconds / midi.length:.03f})"
     )
     # Calculate stretch factor based on the original duration
     stretch_factor = new_duration_seconds / midi.length
@@ -264,18 +264,51 @@ def get_velocities(midi_data: PrettyMIDI) -> List:
     return [[lowest_velocity, highest_velocity], bin_counts.tolist()]
 
 
-def scale_vels_old(midi_data: PrettyMIDI, scale_factor: float = 1.0) -> PrettyMIDI:
-    """
-    Scales the velocities of all notes in a MIDI file by a set amount, with the results capped at 127.
+def augment_recording(path: str, storage_dir: str, tempo: int = 70):
+    midi = PrettyMIDI(path)
+    midi_first_half = PrettyMIDI(initial_tempo=tempo)
+    midi_second_half = PrettyMIDI(initial_tempo=tempo)
+    midi_doubled = PrettyMIDI(path)
 
-    Args:
-        midi_data (pretty_midi.PrettyMIDI): The MIDI file data to be modified.
-        scale_factor (float): The factor by which to scale the velocities. A value of 1.0 leaves velocities unchanged,
-                            0.5 halves them, etc.
-    """
-    for instrument in midi_data.instruments:
+    length = midi.get_end_time()
+    halfway_point = length / 2
+
+    for i, instrument in enumerate(midi.instruments):
+        inst_fh = Instrument(program=instrument.program, name=instrument.name)
+        inst_sh = Instrument(program=instrument.program, name=instrument.name)
+
         for note in instrument.notes:
-            new_velocity = int(note.velocity * scale_factor)
-            note.velocity = min(new_velocity, 127)
+            if note.start < halfway_point:
+                inst_fh.notes.append(note)
+            else:
+                new_note = Note(
+                    velocity=note.velocity,
+                    pitch=note.pitch,
+                    start=note.start - halfway_point,
+                    end=note.end - halfway_point,
+                )
+                inst_sh.notes.append(new_note)
 
-    return midi_data
+            shifted_note = Note(
+                velocity=note.velocity,
+                pitch=note.pitch,
+                start=note.start + length,
+                end=note.end + length,
+            )
+            midi_doubled.instruments[i].notes.append(shifted_note)
+
+        midi_first_half.instruments.append(inst_fh)
+        midi_second_half.instruments.append(inst_sh)
+
+    basename = Path(path).stem
+    midi_first_half.write(os.path.join(storage_dir, f"{basename}_fh.mid"))
+    midi_second_half.write(os.path.join(storage_dir, f"{basename}_sh.mid"))
+    midi_doubled.write(os.path.join(storage_dir, f"{basename}_db.mid"))
+
+    results = [
+        os.path.join(storage_dir, f"{basename}_fh.mid"),
+        os.path.join(storage_dir, f"{basename}_sh.mid"),
+        os.path.join(storage_dir, f"{basename}_db.mid"),
+    ]
+
+    return results
