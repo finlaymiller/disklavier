@@ -178,6 +178,13 @@ class Seeker:
             for filename, details in self.properties.items()
         ]
 
+        if self.params.property == "pr_blur":
+            vectors = [
+                {"name": v["name"],
+                 "metric": np.asarray(v["metric"]).flatten()
+                }
+                for v in vectors
+            ]
         if self.params.property == "pr_blur_c":
             vectors = [
                 {"name": v["name"],
