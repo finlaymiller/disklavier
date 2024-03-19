@@ -121,7 +121,7 @@ class Player:
 
                     self.commands.task_done()
                 except:
-                    console.log(f"{self.p} [bold orange]whoops[/bold orange]")
+                    console.log(f"{self.p} [bold orange]unknown command")
 
             if self.do_tick and not tick_thread.is_alive():
                 tick_thread.start()
@@ -129,9 +129,9 @@ class Player:
             # handle volume changes
             scaled_msg = msg
             if hasattr(msg, "velocity"):
-                if do_fade:
-                    self.last_volume = self.volume
-                    # self.volume = self.fade(self.volume, runtime, midi.length)
+                # if do_fade:
+                # self.last_volume = self.volume
+                # self.volume = self.fade(self.volume, runtime, midi.length)
 
                 scaled_msg.velocity = max(0, min(127, round(scaled_msg.velocity * self.volume)))  # type: ignore
 

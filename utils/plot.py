@@ -71,9 +71,7 @@ def plot_histograms(
     for num_plot in range(num_images):
         plt.subplot(shape[0], shape[1], num_plot + 1)
         plt.bar(range(12), histograms[num_plot])
-        plt.xticks(
-            range(12), SEMITONES
-        )
+        plt.xticks(range(12), SEMITONES)
         plt.title(titles[num_plot])
 
     plt.tight_layout()

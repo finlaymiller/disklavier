@@ -16,7 +16,7 @@ seeker:
   ph_weight_dur: False
   ph_weight_vel: False
   property: "pr_blur"
-  calc_trans: False
+  calc_trans: True
   probabilities:
     - 0.05 # same file
     - 0.05 # next segment in same track
