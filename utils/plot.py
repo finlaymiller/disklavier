@@ -19,12 +19,14 @@ def plot_images(
     set_axis: str = "off",
 ) -> None:
     """Plot images vertically"""
+    if DARK:
+        plt.style.use("dark_background")
+
     num_images = len(images)
 
     if shape is None:
         shape = [num_images, 1]
 
-    plt.style.use("dark_background")
     plt.figure(figsize=(12, 12))
 
     if main_title:
@@ -43,17 +45,38 @@ def plot_images(
 
     plt.tight_layout()
     plt.savefig(save_path)
+    plt.close()
 
 
-def draw_histogram(histogram, title="Pitch Histogram") -> None:
+def plot_histograms(
+    histograms,
+    titles,
+    save_path,
+    shape=None,
+    main_title=None,
+) -> None:
     if DARK:
         plt.style.use("dark_background")
-    plt.bar(range(12), histogram)
-    plt.ylabel("Frequency")
-    plt.title(title)
-    plt.xticks(
-        range(12), ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-    )
+
+    num_images = len(histograms)
+
+    if shape is None:
+        shape = [num_images, 1]
+
+    plt.figure(figsize=(12, 12))
+
+    if main_title:
+        plt.suptitle(main_title)
+
+    for num_plot in range(num_images):
+        plt.subplot(shape[0], shape[1], num_plot + 1)
+        plt.bar(range(12), histograms[num_plot])
+        plt.xticks(range(12), SEMITONES)
+        plt.title(titles[num_plot])
+
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.close()
 
 
 def draw_piano_roll(piano_roll, fs=100, title="Piano Roll") -> None:
@@ -71,6 +94,7 @@ def draw_piano_roll(piano_roll, fs=100, title="Piano Roll") -> None:
     tick_spacing = 1
     ticks = np.arange(0, len(piano_roll.T) / fs, tick_spacing)
     plt.xticks(ticks * fs, labels=[f"{tick:.1f}" for tick in ticks])
+    plt.close()
 
 
 def plot_piano_roll_and_pitch_histogram(input_path: str, output_dir: str) -> None:
@@ -110,6 +134,7 @@ def plot_piano_roll_and_pitch_histogram(input_path: str, output_dir: str) -> Non
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"{Path(input_path).stem}_ph.png"))
+    plt.close()
 
 
 def plot_pr_hists(midi: PrettyMIDI, energy_hist, title) -> None:
@@ -140,3 +165,4 @@ def plot_pr_hists(midi: PrettyMIDI, energy_hist, title) -> None:
     ax3.set_xticks(range(12), SEMITONES)
 
     plt.tight_layout()
+    plt.close()

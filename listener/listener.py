@@ -67,8 +67,8 @@ class Listener:
                             name="player",
                         )
                         self.metro_thread.start()
-                elif msg.type == "control_change" and msg.value == 0 and msg.control == self.params.reset:
-                    self.reset_event.set()
+                # elif msg.type == "control_change" and msg.value == 0 and msg.control == self.params.reset:
+                #     self.reset_event.set()
                 elif self.is_recording and msg.type in ["note_on", "note_off"]:
                     if len(self.recorded_notes) == 0:
                         # set times to start from now
