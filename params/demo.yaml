@@ -15,18 +15,19 @@ seeker:
   bin_length: 1.0
   ph_weight_dur: False
   ph_weight_vel: False
-  property: "pitch_histogram"
-  # property: "pr_blur"
+  # property: "pitch_histogram"
+  # property: "energy"
+  property: "pr_blur"
   # property: "pr_blur_c"
   calc_trans: False # needs to be True if using "pr_blur_c"
   probabilities:
-    - 0.15 # same file
-    - 0.15 # next segment in same track
-    - 0.15 # prev segment in same track
-    - 0.15 # 2nd next segment in same track
-    - 0.15 # 2nd prev segment in same track
-    - 0.05 # similar segment from another track
-    - 0.05 # similar segment from another track
-    - 0.05 # similar segment from another track
-    - 0.05 # similar segment from another track
-    - 0.05 # similar segment from another track
+    - 0.175 # same file
+    - 0.175 # next segment in same track
+    - 0.175 # prev segment in same track
+    - 0.175 # 2nd next segment in same track
+    - 0.175 # 2nd prev segment in same track
+    - 0.025 # similar segment from another track
+    - 0.025 # similar segment from another track
+    - 0.025 # similar segment from another track
+    - 0.025 # similar segment from another track
+    - 0.025 # similar segment from another track

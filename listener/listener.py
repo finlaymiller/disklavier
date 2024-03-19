@@ -63,7 +63,7 @@ class Listener:
                     # record pedal not released, but not already recording
                     elif self.is_recording == False:
                         console.log(f"{self.p} recording at {self.params.tempo} BPM")
-                        self.reset_event.set()
+                        # self.reset_event.set()
                         self.is_recording = True
 
                         self.stop_tick_event = Event()

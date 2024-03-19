@@ -27,7 +27,7 @@ def tick(bpm: int, stop_event: Event, p: str = "[cyan]metro[/cyan] : ", do_print
 
     while not stop_event.is_set():
         if do_print:
-            console.log(f"{p} [grey50]tick! {tick_len}")
+            console.log(f"{p} [grey50]tick!")
         play_obj = tick.play()
         play_obj.wait_done()
         time.sleep(60.0 / bpm - tick_len)
