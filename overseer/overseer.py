@@ -8,6 +8,7 @@ from rich.progress import Progress
 from player.player import Player
 from listener.listener import Listener
 from seeker.seeker import Seeker
+# from controller.controller import Controller
 
 from utils import console
 from utils.midi import stretch_midi_file
@@ -71,6 +72,7 @@ class Overseer:
             self.progress_queue,
             self.kill_event,
         )
+        # self.controller = Controller(self.kill_controller_event, self.keypress_queue)
 
     def start(self):
         """start the system"""
@@ -88,6 +90,11 @@ class Overseer:
                 target=self.listener.listen, args=(), name="listener"
             )
             listen_thread.start()
+
+        # controller_thread = Thread(
+        #     target=self.controller.run, args=(), name="controller"
+        # )
+        # controller_thread.start()
 
         try:
             while True:
