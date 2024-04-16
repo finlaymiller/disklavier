@@ -1,11 +1,9 @@
 in_port: 'from Max 1'
 out_port: 'to Max 1'
 listener:
-  ctrl: 67
-  in_port: 'from Max 1'
+  record: 67
+  reset: 66
 player:
-  in_port: 'from Max 1'
-  out_port: 'to Max 1'
   loop_chance: 0.0
   play_time: 6000
   time_elapsed: 0
@@ -16,3 +14,16 @@ seeker:
   bin_length: 1.0
   ph_weight_dur: False
   ph_weight_vel: False
+  property: "pitch_histogram"
+  calc_trans: False
+  probabilities:
+    - 0.05 # same file
+    - 0.05 # next segment in same track
+    - 0.05 # prev segment in same track
+    - 0.05 # 2nd next segment in same track
+    - 0.05 # 2nd prev segment in same track
+    - 0.15 # similar segment from another track
+    - 0.15
+    - 0.15
+    - 0.15
+    - 0.15

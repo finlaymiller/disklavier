@@ -1,7 +1,9 @@
-inputs
-outputs
 data/playlist
 runs
+data/datasets
+data/outputs
+notebooks/tmp
+*.tar.gz
 
 .DS_STORE
 

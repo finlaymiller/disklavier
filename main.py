@@ -16,7 +16,7 @@ from utils import console, tick
 p = "[white]main[/white]  :"
 
 
-def check_tempo(tempo) -> int:
+def check_tempo(tempo: int = 60) -> int:
     console.log(f"{p} running at {tempo}bpm")
     console.log(f"{p} how does this sound?")
     stop_event = Event()
@@ -38,7 +38,7 @@ def check_tempo(tempo) -> int:
                 default=60,
             )
             if new_tempo >= 20 and new_tempo <= 200:
-                check_tempo(new_tempo)
+                return check_tempo(new_tempo)
             console.log(f"{p} [prompt.invalid]tempo must be between 20 and 200")
 
 
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output_dir",
         default=None,
-        help="directory in which to store outputs (metrics files, logs, recordings)",
+        help="directory in which to store outputs (logs, recordings, etc...)",
     )
     parser.add_argument(
         "--log_config",
@@ -72,6 +72,25 @@ if __name__ == "__main__":
         help="dont wait for user input, just start playing",
     )
     parser.add_argument(
+        "-p",
+        "--plot",
+        action="store_true",
+        help="plot pitch histogram and midi file pairs as we go",
+    )
+    parser.add_argument(
+        "-t",
+        "--tick",
+        action="store_true",
+        help="metronome during playback",
+    )
+    parser.add_argument(
+        "-v",
+        "--velocity",
+        type=float,
+        default=1.0,
+        help="scale note velocities [0.1, 2.0]",
+    )
+    parser.add_argument(
         "--tempo",
         type=int,
         help="tempo to record and play at, in bpm",
@@ -79,53 +98,58 @@ if __name__ == "__main__":
     args = parser.parse_args()
     params = OmegaConf.load(args.param_file)
 
-    # logging.config.fileConfig(args.log_config)
-    # logger = logging.getLogger('main')
+    console.log(f"{p} loading with args:\n\t{args}")
+    console.log(f"{p} loading with params:\n\t{params}")
 
     # filesystem setup
-    output_dir = "general"  # one output dir only
-    # output_dir = f"{datetime.now().strftime('%y-%m-%d')}"   # daily output dirs
-    # output_dir = f"{datetime.now().strftime('%y-%m-%d_%H%M%S')}"  # unique output dirs
-    log_dir = os.path.join(args.output_dir, output_dir, "logs")
-    record_dir = os.path.join(args.output_dir, output_dir, "records")
+    log_dir = os.path.join(args.output_dir, "logs")
+    record_dir = os.path.join(args.output_dir, "records")
+    plot_dir = os.path.join(args.output_dir, "plots", f"{datetime.now().strftime('%y%m%d-%H%M')}")
+    playlist_dir = os.path.join(
+        "data", "playlist", f"{datetime.now().strftime("%y%m%d-%H%M")}-{params.property}"
+    )
 
     if not os.path.exists(args.output_dir):
-        console.log(f"{p} creating new outputs folder: '{args.output_dir}'")
         os.mkdir(args.output_dir)
-    if not os.path.exists(os.path.join(args.output_dir, output_dir)):
-        console.log(f"{p} creating new outputs folder: '{output_dir}'")
-        os.mkdir(os.path.join(args.output_dir, output_dir))
     if not os.path.exists(log_dir):
         console.log(f"{p} creating new logging folder: '{log_dir}'")
         os.mkdir(log_dir)
     if not os.path.exists(record_dir):
         console.log(f"{p} creating new recordings folder: '{record_dir}'")
         os.mkdir(record_dir)
-    if os.path.exists("data/playlist"):
-        for file in os.listdir("data/playlist"):
-            os.remove(os.path.join("data/playlist", file))
-    else:
-        console.log(f"{p} creating new playlist folder: 'data/playlist'")
-        os.mkdir("data/playlist")
-    console.log(f"{p} filesystem is set up")
+    if not os.path.exists(plot_dir):
+        console.log(f"{p} creating new plots folder: '{plot_dir}'")
+        os.mkdir(plot_dir)
+    if not os.path.exists(os.path.join("data", "playlist")):
+        os.mkdir(os.path.join("data", "playlist"))
+    if not os.path.exists(playlist_dir):
+        console.log(f"{p} creating new playlist folder: '{playlist_dir}'")
+        os.mkdir(playlist_dir)
+    console.log(f"{p}[green bold] filesystem set up complete")
 
     if args.tempo:
         # playback_tempo = check_tempo(args.tempo)
         playback_tempo = args.tempo
 
+    if args.velocity < 0.1 or args.velocity > 2.0:
+        console.log(f"{p}[red] velocity argument is out of bounds\n{args.velocity} must be between [0.1, 2.0]")
+
     # run!
     overseer = Overseer(
         params,
-        args.data_dir,
-        os.path.join(args.output_dir, output_dir),
+        args,
+        playlist_dir,
         record_dir,
+        plot_dir,
         playback_tempo,
-        args.force_rebuild,
-        args.kickstart,
     )
+    console.log(f"{p} overseer setup complete")
     overseer.start()
 
-    console.log(f"{p} [green bold]session complete, saving log")
+    # run complete
     console.save_text(
         os.path.join(log_dir, f"{datetime.now().strftime('%y-%m-%d_%H%M%S')}.log")
     )
+    console.log(f"{p}[green bold] session complete, exiting")
+
+    exit()
