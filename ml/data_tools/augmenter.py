@@ -4,7 +4,7 @@ import os
 import random
 import numpy as np
 from PIL import ImageFilter
-from tqdm import tqdm
+from rich.progress import track
 
 from typing import List
 
@@ -108,7 +108,6 @@ class DataAugmenter:
             with np.load(self.default_set) as f:
                 console.log(f"{self.p} overfit test activated")
                 data = self._n2l(f)
-                # random.shuffle(data)
                 random_image = data[self.params.overfit_index]
                 self.dataset = MIDILoopDataset(
                     [(random_image[0], format_image(random_image[1]))],
@@ -141,7 +140,7 @@ class DataAugmenter:
         second_pass = []
 
         # shift images
-        for name, image in tqdm(clean_images, unit="images", desc="shifting"):
+        for name, image in track(clean_images, description="shifting"):
             time_factor = image[:, 0]  # save manually included time factor
             image = np.delete(image, 0, axis=1)  # remove it from the image though
             image = image / np.max(image)  # normalize
@@ -159,7 +158,7 @@ class DataAugmenter:
                     first_pass[i] = (si[0], new_smear)
 
         # add noise to images
-        for ki in tqdm(first_pass, unit="images", desc="noising"):
+        for ki in track(first_pass, description="noising"):
             new_key, image = ki
             for _ in range(self.params.factor):
                 noisy_image = noise(image, self.params.noise_factor)

@@ -1,4 +1,6 @@
 log_dir: "runs"
+model_name: "denoising_autoencoder"
+
 augmenter:
   factor: 1
   do_vshift: false
@@ -7,9 +9,10 @@ augmenter:
   smear_filter: "max"
   do_noise: true
   noise_factor: 0.05
-  overfit: false
+  overfit: true
   overfit_index: 0
   overfit_length: 3200
+
 encoder:
   kernel_size: 3
   padding: 1
@@ -17,21 +20,23 @@ encoder:
   channel_size: 8
   pool_size: 2
   activation: "silu"
+
 decoder:
   padding: 0
   stride: 2
   channel_size: 8
   out_dim2: 1
   activation: "silu"
-model_name: "bad_autoencoder"
+
 trainer:
   loss: "mse"
-  epochs: 10
+  epochs: 1
   log_dir: "runs"
   log_tag: "overfit"
   noise_factor: 0.0
   learning_rate: 0.001
   batch_size: 32
+
 loader:
   batch_size: 32
   shuffle: true

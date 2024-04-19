@@ -7,7 +7,12 @@ from torch.utils.tensorboard.writer import SummaryWriter
 import os
 from datetime import datetime
 from utils import console
-from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn, TimeRemainingColumn
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 
 from utils.image import format_image, plot_images
 from ml.data_tools.augmentation import noise
@@ -76,7 +81,7 @@ class Trainer:
             self.train_loss = []
             for epoch in range(self.params.epochs):
                 running_loss = 0.0
-                for i, (names, images) in enumerate(self.train_dl):
+                for i, (_, images) in enumerate(self.train_dl):
                     # train step
                     images = images.to(self.device)
                     self.optimizer.zero_grad()
@@ -111,7 +116,7 @@ class Trainer:
             console.log(f"{self.p}done training! loss is", self.train_loss)
 
     def test_reconstruction(
-        self, image, label: str, run_file=None, overfit: bool = False
+        self, image, label: str, output_dir: str, run_file=None, overfit: bool = False
     ) -> None:
         """"""
         console.log(
@@ -134,4 +139,4 @@ class Trainer:
             f"reconstructed (loss={self.train_loss[-1]:.03f})",
         ]
 
-        plot_images(images, titles, main_title=f"{run_file}")
+        plot_images(images, titles, main_title=f"{run_file}", output_dir=output_dir)

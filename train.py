@@ -2,6 +2,7 @@ import os
 from glob import iglob
 import torch
 from torch.utils.data import DataLoader
+from datetime import datetime
 
 from argparse import ArgumentParser
 from omegaconf import OmegaConf
@@ -13,7 +14,7 @@ from ml.train import Trainer
 from utils import console
 
 if __name__ == "__main__":
-    p = '[white]main[/white]   :'
+    p = "[white]main[/white]   :"
 
     # load arguments and parameters
     parser = ArgumentParser(description="train a model on MIDI data")
@@ -35,12 +36,15 @@ if __name__ == "__main__":
     console.log(f"{p} running with arguments:\n{args}")
     console.log(f"{p} running with parameters:\n{params}")
 
-    if os.path.exists(params.log_dir):
-        console.log(f"{p} logging directory already exists")
-    else:
-        console.log(f"{p} creating new log folder as {params.log_dir}")
-        os.makedirs(params.log_dir)
+    plot_dir = os.path.join(args.output_dir, "plots")
 
+    if not os.path.exists(params.log_dir):
+        console.log(f"{p} creating new log folder as '{params.log_dir}'")
+        os.makedirs(params.log_dir)
+    if not os.path.exists(args.output_dir):
+        console.log(f"{p} creating new output folder as '{args.output_dir}'")
+        os.makedirs(args.output_dir)
+    os.makedirs(plot_dir)
 
     # dataset setup
     augmenter = DataAugmenter(args.data_dir, params.augmenter)
@@ -51,6 +55,14 @@ if __name__ == "__main__":
         shuffle=params.loader.shuffle,
         num_workers=params.loader.num_workers,
     )
+
+    shapes = []
+    for names, images in loader:
+        for image in images:
+            if image.shape not in shapes:
+                shapes.append(image.shape)
+
+    console.log(f"data has shapes:", shapes)
 
     # model setup
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -70,15 +82,8 @@ if __name__ == "__main__":
 
     # trainer setup
     trainer = Trainer(model, params.model_name, loader, device, params.trainer)
-    # trainer.train()
-    # test_label, test_image = augmenter.get_clean()
-    # trainer.test_reconstruction(
-    #     test_image, test_label, args.param_file, params.augmenter.overfit
-    # )
-    shapes = []
-    for (names, images) in loader:
-        for image in images:
-            if image.shape not in shapes:
-                shapes.append(image.shape)
-
-    console.print(shapes)
+    trainer.train()
+    test_label, test_image = augmenter.get_clean()
+    trainer.test_reconstruction(
+        test_image, test_label, plot_dir, args.param_file, params.augmenter.overfit
+    )

@@ -55,8 +55,8 @@ def format_image(image: NDArray | torch.Tensor, remove_time=True) -> torch.Tenso
     # normalize to [0, 1]
     if torch.any(image > 1.0):
         image = image / image.max()
-    # zero-pad to (1, 60, 412)
-    image = pad(image, (3, 4, 5, 5), mode="constant", value=0.0)
+    # zero-pad to (1, 60, 412). padding is (left, right, top, bottom)
+    image = pad(image, (10, 9, 6, 6), mode="constant", value=0.0)
     # image = pad(input=image, pad=(0, 12, 1, 1), mode="constant", value=0.0)
 
     return image
