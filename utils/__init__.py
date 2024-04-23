@@ -1,8 +1,6 @@
 import time
 import wave
-import random
 import numpy as np
-from pathlib import Path
 import simpleaudio as sa
 from threading import Event
 from rich.console import Console

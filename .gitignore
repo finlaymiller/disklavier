@@ -1,4 +1,6 @@
 runs
+inputs/
+ml/outputs/
 data/ableton
 data/playlist
 data/datasets

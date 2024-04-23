@@ -107,7 +107,8 @@ class DataAugmenter:
         if self.params.overfit:
             with np.load(self.default_set) as f:
                 console.log(f"{self.p} overfit test activated")
-                data = self._n2l(f)
+                with console.status("loading dataset...", spinner="pong"):
+                    data = self._n2l(f)
                 random_image = data[self.params.overfit_index]
                 self.dataset = MIDILoopDataset(
                     [(random_image[0], format_image(random_image[1]))],

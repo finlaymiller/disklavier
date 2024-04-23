@@ -18,8 +18,9 @@ def plot_images(
     images: List[NDArray],
     titles: List[str],
     main_title=None,
-    set_axis: str = "off",
+    outfile_name: str = f"{datetime.now().strftime('%y-%m-%d_%H%M%S')}",
     output_dir: str = "img",
+    set_axis: str = "off",
 ) -> None:
     """Plot images vertically"""
     plt.style.use("dark_background")
@@ -38,15 +39,12 @@ def plot_images(
         plt.title(titles[num_plot])
         plt.axis(set_axis)
 
-    outfile_name = f"{datetime.now().strftime('%y-%m-%d_%H%M%S')}"
-
     plt.savefig(os.path.join(output_dir, outfile_name))
-
-    console.log(f"{p} saved output in '{os.path.join(output_dir, outfile_name)}'")
 
 
 def format_image(image: NDArray | torch.Tensor, remove_time=True) -> torch.Tensor:
-    console.log(f"{p} reformatting image ({image.shape})")
+    if isinstance(image, torch.Tensor):
+        image = image.cpu()
     # remove time factor
     if remove_time:
         image = np.delete(image, 0, axis=1)

@@ -4,9 +4,9 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 
-class AutoEncoder(nn.Module):
+class BaseAutoEncoder(nn.Module):
     def __init__(self):
-        super(AutoEncoder, self).__init__()
+        super(BaseAutoEncoder, self).__init__()
 
         # Encoder layers
         self.enc1 = nn.Conv2d(1, 64, kernel_size=3, padding=1)
