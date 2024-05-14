@@ -8,33 +8,42 @@ class BaseAutoEncoder(nn.Module):
     def __init__(self):
         super(BaseAutoEncoder, self).__init__()
 
-        # Encoder layers
-        self.enc1 = nn.Conv2d(1, 64, kernel_size=3, padding=1)
-        self.enc2 = nn.Conv2d(64, 32, kernel_size=3, padding=1)
-        self.enc3 = nn.Conv2d(32, 16, kernel_size=3, padding=1)
-        self.enc4 = nn.Conv2d(16, 8, kernel_size=3, padding=1)
-        self.pool = nn.MaxPool2d(2, 2)
-
-        # Decoder layers
-        self.dec1 = nn.ConvTranspose2d(8, 8, kernel_size=3, stride=2)
-        self.dec2 = nn.ConvTranspose2d(8, 16, kernel_size=3, stride=2)
-        self.dec3 = nn.ConvTranspose2d(16, 32, kernel_size=2, stride=2)
-        self.dec4 = nn.ConvTranspose2d(32, 64, kernel_size=2, stride=2)
-        self.out = nn.Conv2d(64, 1, kernel_size=3, padding=1)
-
-    def forward(self, x):
         # Encoder
-        x = self.pool(F.silu(self.enc1(x)))
-        x = self.pool(F.silu(self.enc2(x)))
-        x = self.pool(F.silu(self.enc3(x)))
-        x = self.pool(F.silu(self.enc4(x)))
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, 64, kernel_size=3, padding=1),
+            nn.SiLU(),
+            nn.MaxPool2d(2, 2),
+            nn.Conv2d(64, 32, kernel_size=3, padding=1),
+            nn.SiLU(),
+            nn.MaxPool2d(2, 2),
+            nn.Conv2d(32, 16, kernel_size=3, padding=1),
+            nn.SiLU(),
+            nn.MaxPool2d(2, 2),
+            nn.Conv2d(16, 8, kernel_size=3, padding=1),
+            nn.SiLU(),
+            nn.MaxPool2d(2, 2),
+        )
 
         # Decoder
-        x = F.silu(self.dec1(x))
-        x = F.silu(self.dec2(x))
-        x = F.silu(self.dec3(x))
-        x = F.silu(self.dec4(x))
-        x = F.silu(self.out(x))
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(8, 8, kernel_size=3, stride=2),
+            nn.SiLU(),
+            nn.ConvTranspose2d(8, 16, kernel_size=3, stride=2),
+            nn.SiLU(),
+            nn.ConvTranspose2d(16, 32, kernel_size=2, stride=2),
+            nn.SiLU(),
+            nn.ConvTranspose2d(32, 64, kernel_size=2, stride=2),
+            nn.SiLU(),
+            nn.Conv2d(64, 1, kernel_size=3, padding=1),
+            nn.SiLU(),
+        )
+
+    def forward(self, x):
+        # print(f"input shape {x.shape}")
+        x = self.encoder(x)
+        # print(f"hidden shape {x.shape}")
+        x = self.decoder(x)
+        # print(f"output shape {x.shape}")
 
         return x
 
@@ -109,26 +118,21 @@ class Encoder(nn.Module):
            act_fn : Activation function used throughout the encoder network
         """
         super().__init__()
-        self.enc1 = nn.Conv2d(1, 64, kernel_size=3, padding=1)
-        self.enc2 = nn.Conv2d(64, 32, kernel_size=3, padding=1)
-        self.enc3 = nn.Conv2d(32, 16, kernel_size=3, padding=1)
-        self.enc4 = nn.Conv2d(16, 8, kernel_size=3, padding=1)
-        self.pool = nn.MaxPool2d(2, 2)
-        # c_hid = base_channel_size
-        # self.net = nn.Sequential(
-        #     nn.Conv2d(num_input_channels, 8 * c_hid, kernel_size=3, padding=1),
-        #     act_fn(),
-        #     nn.MaxPool2d(2, 2),
-        #     nn.Conv2d(8 * c_hid, 4 * c_hid, kernel_size=3, padding=1),
-        #     act_fn(),
-        #     nn.MaxPool2d(2, 2),
-        #     nn.Conv2d(4 * c_hid, 2 * c_hid, kernel_size=3, padding=1),
-        #     act_fn(),
-        #     nn.MaxPool2d(2, 2),
-        #     nn.Conv2d(2 * c_hid, c_hid, kernel_size=3, padding=1),
-        #     act_fn(),
-        #     nn.MaxPool2d(2, 2),
-        # )
+        c_hid = base_channel_size
+        self.net = nn.Sequential(
+            nn.Conv2d(num_input_channels, 8 * c_hid, kernel_size=3, padding=1),
+            act_fn(),
+            nn.MaxPool2d(2, 2),
+            nn.Conv2d(8 * c_hid, 4 * c_hid, kernel_size=3, padding=1),
+            act_fn(),
+            nn.MaxPool2d(2, 2),
+            nn.Conv2d(4 * c_hid, 2 * c_hid, kernel_size=3, padding=1),
+            act_fn(),
+            nn.MaxPool2d(2, 2),
+            nn.Conv2d(2 * c_hid, c_hid, kernel_size=3, padding=1),
+            act_fn(),
+            nn.MaxPool2d(2, 2),
+        )
 
     def forward(self, x):
         x = self.pool(F.silu(self.enc1(x)))
@@ -150,41 +154,36 @@ class Decoder(nn.Module):
            act_fn : Activation function used throughout the decoder network
         """
         super().__init__()
-        self.dec1 = nn.ConvTranspose2d(8, 8, kernel_size=3, stride=2)
-        self.dec2 = nn.ConvTranspose2d(8, 16, kernel_size=3, stride=2)
-        self.dec3 = nn.ConvTranspose2d(16, 32, kernel_size=2, stride=2)
-        self.dec4 = nn.ConvTranspose2d(32, 64, kernel_size=2, stride=2)
-        self.out = nn.Conv2d(64, 1, kernel_size=3, padding=1)
-        # c_hid = base_channel_size
-        # self.linear = nn.Sequential(nn.Linear(latent_dim, 2 * 16 * c_hid), act_fn())
-        # self.net = nn.Sequential(
-        #     nn.ConvTranspose2d(
-        #         2 * c_hid,
-        #         2 * c_hid,
-        #         kernel_size=3,
-        #         output_padding=1,
-        #         padding=1,
-        #         stride=2,
-        #     ),  # 4x4 => 8x8
-        #     act_fn(),
-        #     nn.Conv2d(2 * c_hid, 2 * c_hid, kernel_size=3, padding=1),
-        #     act_fn(),
-        #     nn.ConvTranspose2d(
-        #         2 * c_hid, c_hid, kernel_size=3, output_padding=1, padding=1, stride=2
-        #     ),  # 8x8 => 16x16
-        #     act_fn(),
-        #     nn.Conv2d(c_hid, c_hid, kernel_size=3, padding=1),
-        #     act_fn(),
-        #     nn.ConvTranspose2d(
-        #         c_hid,
-        #         num_input_channels,
-        #         kernel_size=3,
-        #         output_padding=1,
-        #         padding=1,
-        #         stride=2,
-        #     ),  # 16x16 => 32x32
-        #     nn.Tanh(),  # The input images is scaled between -1 and 1, hence the output has to be bounded as well
-        # )
+        c_hid = base_channel_size
+        self.linear = nn.Sequential(nn.Linear(latent_dim, 2 * 16 * c_hid), act_fn())
+        self.net = nn.Sequential(
+            nn.ConvTranspose2d(
+                2 * c_hid,
+                2 * c_hid,
+                kernel_size=3,
+                output_padding=1,
+                padding=1,
+                stride=2,
+            ),  # 4x4 => 8x8
+            act_fn(),
+            nn.Conv2d(2 * c_hid, 2 * c_hid, kernel_size=3, padding=1),
+            act_fn(),
+            nn.ConvTranspose2d(
+                2 * c_hid, c_hid, kernel_size=3, output_padding=1, padding=1, stride=2
+            ),  # 8x8 => 16x16
+            act_fn(),
+            nn.Conv2d(c_hid, c_hid, kernel_size=3, padding=1),
+            act_fn(),
+            nn.ConvTranspose2d(
+                c_hid,
+                num_input_channels,
+                kernel_size=3,
+                output_padding=1,
+                padding=1,
+                stride=2,
+            ),  # 16x16 => 32x32
+            nn.Tanh(),  # The input images is scaled between -1 and 1, hence the output has to be bounded as well
+        )
 
     def forward(self, x):
         x = F.silu(self.dec1(x))

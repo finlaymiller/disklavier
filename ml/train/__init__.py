@@ -1,18 +1,15 @@
+import os
+import time
+import numpy as np
+from datetime import datetime
+from utils import console
+from rich.progress import Progress
+
 import torch
 from torch import nn
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard.writer import SummaryWriter
-
-import os
-from datetime import datetime
-from utils import console
-from rich.progress import (
-    Progress,
-    SpinnerColumn,
-    TimeElapsedColumn,
-    TimeRemainingColumn,
-)
 
 from utils.image import format_image, plot_images
 from ml.data_tools.augmentation import noise
@@ -73,16 +70,10 @@ class Trainer:
         )
         writer = SummaryWriter(self.log_dir)
 
-        with Progress(
-            SpinnerColumn(),
-            *Progress.get_default_columns(),
-            TimeElapsedColumn(),
-            TimeRemainingColumn(),
-        ) as progress:
+        with Progress() as progress:
             epoch_task = progress.add_task("[cyan3]epochs", total=self.params.epochs)
             train_task = progress.add_task("[green3]dataset", total=len(self.train_dl))
 
-            num_examples = 0
             self.train_loss = {}
             for epoch in range(self.params.epochs):
                 running_loss = 0.0
@@ -111,20 +102,20 @@ class Trainer:
                                 f"gradients/{p_name}.grad", param.grad, global_step
                             )
 
-                    progress.update(train_task, advance=len(images))
-                    num_examples += len(images)
+                    progress.update(train_task, advance=1)
                 # track loss
                 loss = running_loss / len(self.train_dl)
                 self.train_loss[f"epoch {epoch}"] = loss
 
+                filename = f"{datetime.now().strftime('%y%m%d-%H%M%S')}_epoch-{epoch+1}"
                 self.test_reconstruction(
-                    images[0], names[0], self.plot_dir, f"epoch-{epoch}", True
+                    images[0], names[0], self.plot_dir, f"epoch-{epoch}", True, filename
                 )
 
                 # checkpoint
                 ckpt_file = os.path.join(
                     self.ckpt_dir,
-                    f"{datetime.now().strftime('%y%m%d-%H%M%S')}_epoch-{epoch}",
+                    filename,
                 )
                 torch.save(
                     {
@@ -136,32 +127,56 @@ class Trainer:
                     ckpt_file,
                 )
 
+                # update progress bars
                 progress.update(epoch_task, advance=1)
+                progress.update(train_task, completed=0)
 
-            console.log(
-                f"{self.p} done training on {num_examples} images! loss is",
-                self.train_loss,
-            )
+        console.log(
+            f"{self.p} done training! loss is",
+            self.train_loss,
+        )
 
     def test_reconstruction(
-        self, image, label: str, output_dir: str, run_file=None, overfit: bool = False
+        self,
+        image: torch.Tensor,
+        label: str,
+        output_dir: str,
+        run_file=None,
+        overfit: bool = False,
+        plot_name=None,
     ) -> None:
         """"""
         # console.log(f"{self.p}testing '{self.model_name}' image reconstruction on '{label}'")
-        noisy_image = image  # noise(image)
-        noisy_image = noisy_image.to(self.device)
+        # noisy_image = image  # noise(image)
+        # noisy_image = noisy_image.to(self.device)
 
-        output = self.model(noisy_image)
+        clean_image = torch.from_numpy(np.expand_dims(image.cpu(), 0))
+        test_image = image.to(self.device, copy=True)
+        output = self.model(test_image)
 
+        # images = [
+        #     format_image(image),
+        #     noisy_image.cpu().data,
+        #     output.cpu().data,
+        # ]
         images = [
-            format_image(image),
-            noisy_image.cpu().data,
+            clean_image,
+            test_image.cpu().data,
             output.cpu().data,
         ]
         titles = [
             f"{label} (epochs={self.params.epochs})",
             f"noisy ({self.params.noise_factor}% noise)",
-            f"reconstructed (loss={list(self.train_loss.items())[-1][1]:.03f})",
+            f"reconstructed (loss={list(self.train_loss.items())[-1][1]:.3e})",
         ]
 
-        plot_images(images, titles, main_title=f"{run_file}", output_dir=output_dir)
+        if not plot_name:
+            plot_name = f"{datetime.now().strftime('%y%m%d-%H%M%S')}"
+
+        plot_images(
+            images,
+            titles,
+            main_title=f"{run_file}",
+            outfile_name=plot_name,
+            output_dir=output_dir,
+        )

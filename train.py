@@ -12,7 +12,7 @@ from ml.data_tools.augmenter import DataAugmenter
 from ml.train import Trainer
 
 from utils import console
-from utils.ml import load_model
+from utils.ml import load_model, init_weights
 
 p = "[white]main[/white]   :"
 
@@ -25,14 +25,17 @@ def main(args, params):
         console.log(f"{p} {e}")
         sys.exit(1)
     console.log(f"{p} successfully loaded model '{params.model.name}':\n", model)
-
+    # model.apply(
+    #     lambda m: init_weights(m, params.model.w_init_min, params.model.w_init_max)
+    # )
     # if os.path.exists(os.path.join(args.output_dir, "checkpoints")):
     #     checkpoints = iglob(
     #         os.path.join(os.path.join(args.output_dir, "checkpoints"), "*")
     #     )
     #     model_checkpoint = torch.load(max(checkpoints, key=os.path.getctime))
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device(args.device)
     console.log(f"{p} using device: '{device}'")
     model.to(device)
 
@@ -40,9 +43,9 @@ def main(args, params):
     plot_dir = os.path.join(args.output_dir, "plots")
     ckpt_dir = os.path.join(args.output_dir, "checkpoints", params.model.name)
 
-    if not os.path.exists(params.log_dir):
-        console.log(f"{p} creating new log folder as '{params.log_dir}'")
-        os.makedirs(params.log_dir)
+    if not os.path.exists(params.trainer.log_dir):
+        console.log(f"{p} creating new log folder as '{params.trainer.log_dir}'")
+        os.makedirs(params.trainer.log_dir)
     if not os.path.exists(args.output_dir):
         console.log(f"{p} creating new output folder as '{args.output_dir}'")
         os.makedirs(args.output_dir)
@@ -61,22 +64,18 @@ def main(args, params):
         num_workers=params.loader.num_workers,
     )
 
-    shapes = []
-    for names, images in loader:
-        for image in images:
-            if image.shape not in shapes:
-                shapes.append(image.shape)
-
-    console.log(f"data has shapes:", shapes)
-
-    # trainer setup
+    # train
     trainer = Trainer(
         model, params.model.name, loader, device, params.trainer, plot_dir
     )
     trainer.train()
     test_label, test_image = augmenter.get_clean()
     trainer.test_reconstruction(
-        test_image, test_label, plot_dir, args.param_file, params.augmenter.overfit
+        test_image,
+        test_label,
+        plot_dir,
+        args.param_file,
+        params.augmenter.overfit_num > 0,
     )
 
 
@@ -94,11 +93,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--param_file", default=None, help="path to parameter file, in .yaml"
     )
-    parser.add_argument("--model", help="which model to train")
+    parser.add_argument("--device", default="cuda:0", help="which device to run on")
     args = parser.parse_args()
     params = OmegaConf.load(args.param_file)
 
-    console.log(f"{p} running with arguments:\n{args}")
-    console.log(f"{p} running with parameters:\n{params}")
+    console.log(f"{p} running with arguments:\n", args)
+    console.log(f"{p} running with parameters:\n", params)
 
     main(args, params)

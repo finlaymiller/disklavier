@@ -33,6 +33,8 @@ class DataAugmenter:
         self.dataset_name = self.build_file_string()
         self.dataset_path = os.path.join(self.dir, self.dataset_name)
 
+        random.seed(self.params.seed)
+
     def build_file_string(self) -> str:
         """terms are in the order that they are applied to the image"""
 
@@ -52,16 +54,16 @@ class DataAugmenter:
 
     def get_clean(self, index: int | None = None):
         """return an image from the default input dataset, unless overfitting, then return from the actual dataset"""
-        if os.path.exists(self.default_set) and not self.params.overfit:
+        if os.path.exists(self.default_set) and self.params.overfit_num < 1:
             with np.load(self.default_set) as f:
                 if index is None:
                     index = int(random.uniform(0, len(self._n2l(f))))
                     clean_image = self._n2l(f)[index]
         else:
-            console.log(
-                f"{self.p}not getting clean image from default dataset, falling back on test set"
-            )
             clean_image = self.dataset[0]
+            console.log(
+                f"{self.p} not getting clean image from default dataset, falling back on test set"
+            )
 
         return clean_image
 
@@ -104,15 +106,24 @@ class DataAugmenter:
     def augment(self, force_rebuild: bool = False):
         """augments a set of passed-in images by a factor of factor^2"""
 
-        if self.params.overfit:
+        if self.params.overfit_num > 0:
             with np.load(self.default_set) as f:
-                console.log(f"{self.p} overfit test activated")
                 with console.status("loading dataset...", spinner="pong"):
                     data = self._n2l(f)
-                random_image = data[self.params.overfit_index]
+                random.shuffle(data)
+                random_images = data[
+                    self.params.overfit_index : self.params.overfit_index
+                    + self.params.overfit_num
+                ]
+                formatted_images = [
+                    (img[0], format_image(img[1])) for img in random_images
+                ]
                 self.dataset = MIDILoopDataset(
-                    [(random_image[0], format_image(random_image[1]))],
-                    self.params.overfit_length,
+                    formatted_images,
+                    self.params.overfit_multiplier,
+                )
+                console.log(
+                    f"{self.p} overfit test activated. overfitting on {self.params.overfit_num} images"
                 )
         elif not self.load():
             with np.load(self.default_set) as f:
@@ -128,7 +139,7 @@ class DataAugmenter:
                 console.log(f"{self.p} failed to load new dataset {self.dataset_path}")
                 raise FileNotFoundError
 
-        console.log(f"{self.p} finished loading dataset of {len(self.dataset)} ({self.dataset[0][1].shape}) samples")  # type: ignore
+        console.log(f"{self.p} finished loading dataset of {len(self.dataset)} ({self.dataset[0][1].size()}) samples")  # type: ignore
 
         return self.dataset
 

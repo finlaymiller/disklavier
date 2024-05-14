@@ -1,8 +1,8 @@
 device: "cuda:0"
 
 model:
-  path: "base_autoencoder"
-  name: "BaseAutoEncoder"
+  path: "chatgpt_autoencoder"
+  name: "ChatGPTAutoencoder"
   load_ckpt: True
   w_init_min: 0.01
   w_init_max: 0.1
@@ -16,30 +16,15 @@ augmenter:
   smear_filter: "max"
   do_noise: true
   noise_factor: 0.05
-  overfit_num: 0
+  overfit_num: 10
   overfit_index: 0
   overfit_multiplier: 3200
-
-encoder:
-  kernel_size: 3
-  padding: 1
-  stride: 1
-  channel_size: 8
-  pool_size: 2
-  activation: "silu"
-
-decoder:
-  padding: 0
-  stride: 2
-  channel_size: 8
-  out_dim2: 1
-  activation: "silu"
 
 trainer:
   log_dir: "ml/outputs/runs"
   loss: "mse"
   epochs: 10
-  log_tag: "overfit_1"
+  log_tag: "overfit_10"
   noise_factor: 0.0
   learning_rate: 0.001
   batch_size: 32

@@ -8,7 +8,7 @@ model:
   w_init_max: 0.1
 
 augmenter:
-  seed: 108
+  seed: 10
   factor: 1
   do_vshift: false
   do_smear: false
@@ -16,24 +16,9 @@ augmenter:
   smear_filter: "max"
   do_noise: true
   noise_factor: 0.05
-  overfit_num: 0
+  overfit_num: 1
   overfit_index: 0
   overfit_multiplier: 3200
-
-encoder:
-  kernel_size: 3
-  padding: 1
-  stride: 1
-  channel_size: 8
-  pool_size: 2
-  activation: "silu"
-
-decoder:
-  padding: 0
-  stride: 2
-  channel_size: 8
-  out_dim2: 1
-  activation: "silu"
 
 trainer:
   log_dir: "ml/outputs/runs"
