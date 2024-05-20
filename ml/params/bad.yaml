@@ -1,8 +1,5 @@
-device: "cuda:0"
-
 model:
-  path: "base_autoencoder"
-  name: "BaseAutoEncoder"
+  name: "BadDAE"
   load_ckpt: True
   w_init_min: 0.01
   w_init_max: 0.1
@@ -34,6 +31,8 @@ decoder:
   channel_size: 8
   out_dim2: 1
   activation: "silu"
+
+device: "cuda:0"
 
 trainer:
   log_dir: "ml/outputs/runs"

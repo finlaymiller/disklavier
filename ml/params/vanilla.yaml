@@ -1,5 +1,3 @@
-device: "cuda:0"
-
 model:
   name: 'VanillaVAE'
   in_channels: 3
@@ -23,6 +21,8 @@ logging:
   save_dir: "logs/"
   name: "VanillaVAE"
   
+device: "cuda:0"
+
 augmenter:
   seed: 108
   factor: 1

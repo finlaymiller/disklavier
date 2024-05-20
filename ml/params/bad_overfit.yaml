@@ -1,8 +1,8 @@
 device: "cuda:0"
 
 model:
-  path: "base_autoencoder"
-  name: "BaseAutoEncoder"
+  path: "bad_dae"
+  name: "BadDAE"
   load_ckpt: True
   w_init_min: 0.01
   w_init_max: 0.1
