@@ -1,0 +1,57 @@
+model:
+  name: 'VQVAE'
+  in_channels: 3
+  embedding_dim: 64
+  num_embeddings: 512
+  img_size: 64
+  beta: 0.25
+
+data:
+  data_path: "Data/"
+  train_batch_size: 64
+  val_batch_size:  64
+  patch_size: 64
+  num_workers: 4
+
+
+exp:
+  LR: 0.005
+  weight_decay: 0.0
+  scheduler_gamma: 0.0
+  kld_weight: 0.00025
+  seed: 108
+
+logging:
+  save_dir: "logs/"
+  name: "VQVAE"
+
+device: "cuda:0"
+  
+augmenter:
+  seed: 108
+  factor: 1
+  do_vshift: false
+  do_smear: false
+  smear_radius: 3
+  smear_filter: "max"
+  do_noise: true
+  noise_factor: 0.05
+  overfit_num: 0
+  overfit_index: 0
+  overfit_multiplier: 3200
+
+trainer:
+  log_dir: "ml/outputs/runs"
+  loss: "mse"
+  gpus: [1]
+  epochs: 10
+  max_epochs: 10
+  log_tag: "overfit_1"
+  noise_factor: 0.0
+  learning_rate: 0.001
+  batch_size: 32
+
+loader:
+  batch_size: 32
+  shuffle: true
+  num_workers: 4

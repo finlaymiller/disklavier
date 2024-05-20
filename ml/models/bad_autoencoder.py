@@ -4,9 +4,9 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 
-class BaseAutoEncoder(nn.Module):
+class BadAutoEncoder(nn.Module):
     def __init__(self):
-        super(BaseAutoEncoder, self).__init__()
+        super(BadAutoEncoder, self).__init__()
 
         # Encoder
         self.encoder = nn.Sequential(
