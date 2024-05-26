@@ -39,7 +39,7 @@ def quantize_midi(filename, sections_per_beat) -> PrettyMIDI:
     return midi_data
 
 
-def blur_pr(midi: PrettyMIDI, do_center: bool = True, delta_max: int = 55):
+def blur_pr(midi: PrettyMIDI, do_center: bool = True, delta_max: int = 55) -> List:
     pr = midi.get_piano_roll()
     if do_center:
         pr = strip_and_pad(pr, delta_max)
@@ -130,7 +130,14 @@ def stretch_midi_file(
 
 
 def set_tempo(input_file_path, target_tempo) -> None:
-    """"""
+    """Sets the tempo of a MIDI file to a specified target tempo.
+
+    Args:
+        input_file_path (str): The path to the MIDI file whose tempo is to be adjusted.
+        target_tempo (int): The target tempo in beats per minute (BPM) to set for the MIDI file.
+
+    This function modifies the specified MIDI file by inserting a tempo change meta-message at the beginning of the first track, effectively setting the entire file to the specified tempo. The change is saved to the same file path, overwriting the original MIDI file.
+    """
     mid = MidiFile(input_file_path)
     tempo = mido.bpm2tempo(target_tempo)
     mid.tracks[0].insert(0, MetaMessage("set_tempo", tempo=tempo, time=0))
@@ -268,16 +275,22 @@ def get_velocities(midi_data: PrettyMIDI) -> List:
     return [[lowest_velocity, highest_velocity], bin_counts.tolist()]
 
 
-def augment_recording(path: str, storage_dir: str, tempo: int = 70):
+def augment_recording(path: str, storage_dir: str, tempo: int) -> List[str]:
     midi = PrettyMIDI(path)
     midi_first_half = PrettyMIDI(initial_tempo=tempo)
     midi_second_half = PrettyMIDI(initial_tempo=tempo)
     midi_doubled = PrettyMIDI(path)
 
+    basename = Path(path).stem
+    first_half_path = os.path.join(storage_dir, f"{basename}_fh.mid")
+    second_half_path = os.path.join(storage_dir, f"{basename}_sh.mid")
+    doubled_path = os.path.join(storage_dir, f"{basename}_db.mid")
+
     length = midi.get_end_time()
     halfway_point = length / 2
 
     for i, instrument in enumerate(midi.instruments):
+        console.log(f"augmenting {i}")
         inst_fh = Instrument(program=instrument.program, name=instrument.name)
         inst_sh = Instrument(program=instrument.program, name=instrument.name)
 
@@ -293,27 +306,100 @@ def augment_recording(path: str, storage_dir: str, tempo: int = 70):
                 )
                 inst_sh.notes.append(new_note)
 
-            shifted_note = Note(
-                velocity=note.velocity,
-                pitch=note.pitch,
-                start=note.start + length,
-                end=note.end + length,
+            midi_doubled.instruments[i].notes.append(
+                Note(
+                    velocity=note.velocity,
+                    pitch=note.pitch,
+                    start=note.start + length,
+                    end=note.end + length,
+                )
             )
-            midi_doubled.instruments[i].notes.append(shifted_note)
 
         midi_first_half.instruments.append(inst_fh)
         midi_second_half.instruments.append(inst_sh)
 
-    basename = Path(path).stem
-    midi_first_half.write(os.path.join(storage_dir, f"{basename}_fh.mid"))
-    midi_second_half.write(os.path.join(storage_dir, f"{basename}_sh.mid"))
-    midi_doubled.write(os.path.join(storage_dir, f"{basename}_db.mid"))
+    midi_first_half.write(first_half_path)
+    midi_second_half.write(second_half_path)
+    midi_doubled.write(doubled_path)
 
-    results = [
-        os.path.join(storage_dir, f"{basename}_fh.mid"),
-        os.path.join(storage_dir, f"{basename}_sh.mid"),
-        os.path.join(storage_dir, f"{basename}_db.mid"),
-    ]
+    return [first_half_path, second_half_path, doubled_path]
 
 
-    return results
+def b2t(time_beats: float, tempo: int) -> float:
+    """Converts a time in beats to the equivalent time in seconds.
+
+    Args:
+        time_beats (float): The time in beats.
+        tempo (int): The tempo in beats per minute.
+
+    Returns:
+        float: The equivalent time in seconds.
+
+    Example:
+        >>> b2t(2.0, 120)
+        1.0
+    """
+
+    return time_beats * 60 / tempo
+
+
+def calc_beats(tempo: int, start_time_seconds: float, end_time_seconds: float):
+    """Compute the timing for each beat based on the given tempo, starting
+    from 'start_time_seconds' until 'end_time_seconds'. Each beat's timing is
+    calculated and appended to a list, which is then returned. The calculation
+    assumes a constant tempo throughout the specified time range, and that
+    'start_time_seconds' is a valid first beat.
+
+    Args:
+        tempo (int): The tempo of the music in beats per minute (BPM).
+        start_time_seconds (float): The start time of the time range in seconds.
+        end_time_seconds (float): The end time of the time range in seconds.
+
+    Returns:
+        list[float]: A list containing the timestamps (in seconds) where each
+                        beat occurs within the specified time range.
+    """
+    beat_duration = 60 / tempo
+    current_time = start_time_seconds
+    beat_times = []
+
+    while current_time <= end_time_seconds:
+        beat_times.append(current_time)
+        current_time += beat_duration
+
+    return beat_times
+
+
+def get_active_beats(beats, start):
+    """Finds and returns the number immediately before a given start value and
+    all numbers following it in the list.
+
+    Args:
+        beats (list[float]): A list of numeric values representing beats.
+        start (float): The start value to search for in the list.
+
+    Returns:
+        list[float]: A list containing the value immediately before the start
+                        value (if any) and all subsequent values. Returns an
+                        empty list if the start value is greater than all
+                        elements in the list.
+    """
+    index = next((i for i, beat in enumerate(beats) if beat > start), None)
+
+    if index is not None and index > 0:
+        return beats[index - 1 :]
+
+    return []
+
+
+def text_to_midi(filepath: str, tempo: int) -> None:
+    if not os.path.exists(filepath):
+        console.log(f"[red]unable to find notes file at[/red] '{filepath}'")
+        return
+
+    with open(filepath, "r") as f:
+        new_midi = mido.MidiFile()
+        new_track = mido.MidiTrack()
+        for line in f.readlines():
+            # console.log(f"[dark_sea_green2]midi[/dark_sea_green2]  : {line}")
+            note_properties = line.split(" ")

@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 from argparse import ArgumentParser
 from omegaconf import OmegaConf
-from threading import Thread, Event
+from threading import Thread, Event, enumerate
 from rich.prompt import Confirm, IntPrompt
 
 from overseer.overseer import Overseer
@@ -66,8 +66,8 @@ if __name__ == "__main__":
         help="whether to rebuild similarity metrics",
     )
     parser.add_argument(
-        "-k",
-        "--kickstart",
+        "-i",
+        "--random_init",
         action="store_true",
         help="dont wait for user input, just start playing",
     )
@@ -95,6 +95,18 @@ if __name__ == "__main__":
         type=int,
         help="tempo to record and play at, in bpm",
     )
+    parser.add_argument(
+        "-c",
+        "--commands",
+        action="store_true",
+        help="enable keyboard commands",
+    )
+    parser.add_argument(
+        "-k",
+        "--kickstart",
+        type=str,
+        help="use provided midi file as prompt",
+    )
     args = parser.parse_args()
     params = OmegaConf.load(args.param_file)
 
@@ -106,7 +118,7 @@ if __name__ == "__main__":
     record_dir = os.path.join(args.output_dir, "records")
     plot_dir = os.path.join(args.output_dir, "plots", f"{datetime.now().strftime('%y%m%d-%H%M')}")
     playlist_dir = os.path.join(
-        "data", "playlist", f"{datetime.now().strftime("%y%m%d-%H%M")}-{params.property}"
+        "data", "playlist", f"{datetime.now().strftime("%y%m%d-%H%M")}-{params.seeker.property}"
     )
 
     if not os.path.exists(args.output_dir):
@@ -117,6 +129,8 @@ if __name__ == "__main__":
     if not os.path.exists(record_dir):
         console.log(f"{p} creating new recordings folder: '{record_dir}'")
         os.mkdir(record_dir)
+    if not os.path.exists(os.path.join(args.output_dir, "plots")):
+        os.mkdir(os.path.join(args.output_dir, "plots"))
     if not os.path.exists(plot_dir):
         console.log(f"{p} creating new plots folder: '{plot_dir}'")
         os.mkdir(plot_dir)
@@ -144,7 +158,7 @@ if __name__ == "__main__":
         playback_tempo,
     )
     console.log(f"{p} overseer setup complete")
-    overseer.start()
+    overseer.run()
 
     # run complete
     console.save_text(
@@ -152,4 +166,4 @@ if __name__ == "__main__":
     )
     console.log(f"{p}[green bold] session complete, exiting")
 
-    exit()
+    console.log(f"Current threads: {enumerate()}")

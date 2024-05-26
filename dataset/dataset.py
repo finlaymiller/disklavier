@@ -11,28 +11,34 @@ from utils import console
 
 
 def segment_midi(input_file_path: str, params):
-    """do the segmentation"""
+    """Segments a MIDI file into smaller parts based on tempo and beats per
+    segment.
+
+    Args:
+        input_file_path (str): Path to the input MIDI file.
+        params: A config object containing segmentation settings, such as:
+            n__num_beats (int): Number of beats per segment.
+            output_dir (str): Directory where segmented MIDI files will be stored.
+            do_shift (int): Indicates how many semitones to transpose the segments.
+            strip_tempo (bool): If True, strip existing tempo information from segments.
+
+    Returns:
+        int: The number of new files created through segmentation and optional transposition.
+
+    This function reads a MIDI file, extracts its tempo from the filename, and segments it into smaller MIDI files each containing a specified number of beats. Optionally, it can transpose the segments by a specified number of semitones. The function adjusts tempo and track end as necessary for each segment.
+    """
     p = "[red]datast[/red]:"
     target_tempo = int(os.path.basename(input_file_path).split("-")[1])
     set_tempo(input_file_path, target_tempo)
-
-    # remove "-t" from filename
-    filename = Path(input_file_path).stem
-    filename_components = filename.split("-")
-    filename = f"{filename_components[0]}-{int(np.round(float(filename_components[1]))):03d}-{filename_components[2]}"
 
     # calculate timings
     midi_pm = pretty_midi.PrettyMIDI(input_file_path)
     total_length = midi_pm.get_end_time()
     segment_length = 60 * params.n__num_beats / target_tempo  # in seconds
-    num_segments_float = total_length / segment_length
-    num_segments = int(np.round(num_segments_float))
+    num_segments = int(np.round(total_length / segment_length))
 
-    # print([total_length, segment_length, num_segments_float, num_segments, init_bpm])
-
-    # print(
-    #     f"breaking '{filename}' ({total_length:.03f} s at {target_tempo} bpm) into {num_segments:03d} segments of {segment_length:.03f} s"
-    # )
+    filename = Path(input_file_path).stem
+    # print(f"breaking '{filename}' ({total_length:.03f} s at {target_tempo} bpm) into {num_segments:03d} segments of {segment_length:.03f} s")
 
     new_files = 0
     for n in list(range(num_segments)):
@@ -65,7 +71,9 @@ def segment_midi(input_file_path: str, params):
 
         # semitone shift
         if params.do_shift > 1:
-            tpose_files = semitone_transpose(segment_filename, params.output_dir, params.do_shift)
+            tpose_files = semitone_transpose(
+                segment_filename, params.output_dir, params.do_shift
+            )
             new_files += len(tpose_files)
         else:
             new_files += 1
@@ -80,7 +88,9 @@ def segment_midi(input_file_path: str, params):
                             track.remove(message)
                             track.append(
                                 MetaMessage(
-                                    "set_tempo", tempo=mido.bpm2tempo(target_tempo), time=0
+                                    "set_tempo",
+                                    tempo=mido.bpm2tempo(target_tempo),
+                                    time=0,
                                 )
                             )
                 os.remove(filepath)
@@ -95,7 +105,7 @@ def segment_midi(input_file_path: str, params):
             #     print(
             #         f"'{os.path.basename(filepath)}' is {test_mid.length:.3f} s at {target_tempo} BPM but should be {segment_length:.3f} s ({test_mid.ticks_per_beat} tpb)"
             #     )
-                # test_mid.print_tracks()
+            # test_mid.print_tracks()
 
     return new_files
 

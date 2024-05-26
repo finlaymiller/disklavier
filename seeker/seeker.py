@@ -16,7 +16,7 @@ from utils import console
 import utils.metrics as metrics
 from utils.plot import plot_histograms
 
-from typing import Tuple
+from typing import Tuple, Dict
 
 
 class Seeker:
@@ -40,7 +40,12 @@ class Seeker:
     ]
 
     def __init__(
-        self, params, input_dir: str, output_dir: str, force_rebuild: bool = False
+        self,
+        params,
+        input_dir: str,
+        output_dir: str,
+        tempo: int,
+        force_rebuild: bool = False,
     ) -> None:
         """"""
         self.params = params
@@ -48,8 +53,9 @@ class Seeker:
         self.output_dir = output_dir
         self.force_rebuild = force_rebuild
         self.probs = self.params.probabilities / np.sum(self.params.probabilities)
-        self.cumprobs = np.cumsum(self.probs)
-        self.rng = np.random.default_rng(1)
+        self.params.tempo = tempo
+        self.params.seed = 1 if self.params.seed is None else self.params.seed
+        self.rng = np.random.default_rng(self.params.seed)
 
         console.log(f"{self.p} initialized to use metric '{self.params.property}'")
 
@@ -211,13 +217,10 @@ class Seeker:
             "diff 5",
         ]
         column_labels = [[label, f"sim-{i + 1}"] for i, label in enumerate(labels)]
-        # column_labels = [
-        #     [f"{prob:.03f}-{i}", f"sim-{i + 1}"] for i, prob in enumerate(self.probs)
-        # ]
         column_labels = [label for sublist in column_labels for label in sublist]
 
         self.table = pd.DataFrame(
-            [["", -1.0] * n] * len(names),
+            [["", -1.0] * len(labels)] * len(names),
             index=names,
             columns=column_labels,
         )
@@ -239,10 +242,10 @@ class Seeker:
                 # console.log(f"\n{self.p} populating row '{name}'")
 
                 i = int(self.table.index.get_loc(name))  # type: ignore
-                i_name, i_seg_num, i_shift = name.split("_")
+                # i_name, i_seg_num, i_shift = name.split("_")
+                i_name, i_seg_num = name.split("_")
                 i_seg_start, i_seg_end = i_seg_num.split("-")
-                # i_track_name = f"{i_name}_{i_seg_num}"
-                # console.print(i_name, i_seg_num, i_shift, i_seg_start, i_seg_end)
+                i_seg_end = i_seg_end.split(".")[0]
 
                 # populate first five columns
                 # get prev file(s)
@@ -267,10 +270,11 @@ class Seeker:
                 for other_name in self.table.index:
                     # console.log(f"{self.p} checking col '{names[j]}'")
                     j = int(self.table.index.get_loc(other_name))  # type: ignore
-                    j_name, j_seg_num, j_shift = other_name.split("_")
-                    # j_seg_start, j_seg_end = j_seg_num.split("-")
-                    # j_track_name = f"{j_name}_{j_seg_num}"
-                    # console.print(j_name, j_seg_num, j_shift, j_seg_start, j_seg_end)
+                    # j_name, j_seg_num, j_shift = other_name.split("_")
+                    j_name, j_seg_num = other_name.split("_")
+
+                    # console.log(f"{self.p} v i", vecs[i])
+                    # console.log(f"{self.p} v j", vecs[j])
 
                     sim = float(1 - cosine(vecs[i], vecs[j]))
 
@@ -290,14 +294,52 @@ class Seeker:
         )
 
         self.table.to_parquet(parquet, index=True)
-
         if os.path.isfile(parquet):
             console.log(f"{self.p} succesfully saved similarities file '{parquet}'")
         else:
             console.log(f"{self.p} error saving similarities file '{parquet}'")
             raise FileNotFoundError
 
-    def get_most_similar_file(self, filename: str, different_parent: bool = True):
+    def get_most_similar_file(
+        self, filename: str, different_parent=True
+    ) -> Dict:
+        """"""
+        console.log(f"{self.p} finding most similar file to '{filename}'")
+        
+        self.properties[filename]["num_plays"] += 1
+        n = 1
+        parent_track, _ = filename.split("_")
+        next_largest = self.table[filename].nlargest(n)
+        console.log(f"{self.p} checking index {next_largest}")
+        next_filename: str = next_largest.index[-1] # type: ignore
+        next_track, _ = next_filename.split("_")
+
+        # TODO: refactor logic?
+        if different_parent:
+            while next_track == parent_track:
+                n += 1
+                value = next_largest.iloc[-1]
+                next_largest = self.table[filename].nlargest(n)
+                console.log(f"{self.p} checking index {next_largest}")
+                next_filename: str = next_largest.index[-1] # type: ignore
+                next_track, _ = next_filename.split("_")
+                value["filename"] = next_filename
+        else:
+            while next_filename == filename:
+                n += 1
+                value = next_largest.iloc[-1]
+                next_largest = self.table[filename].nlargest(n)
+                next_filename: str = next_largest.index[-1] # type: ignore
+                next_track, _ = next_filename.split("_")
+                value["filename"] = next_filename
+
+        console.log(
+            f"{self.p} found '{value['filename']}' with similarity {value["sim"]:.03f}"
+        )
+
+        return value
+
+    def get_most_similar_file_old(self, filename: str, different_parent: bool = True):
         """finds the filename and similarity of the next most similar unplayed file in the similarity table
         NOTE: will go into an infinite loop once all files are played!
         """
@@ -317,7 +359,7 @@ class Seeker:
             n += 1
 
         console.log(
-            f"{self.p} found '{next_filename}' with similarity {similarity:03f}"
+            f"{self.p} found '{next_filename}' with similarity {similarity:.03f}"
         )
 
         return next_filename, similarity
@@ -341,14 +383,10 @@ class Seeker:
             self.last_trans = filename[-7:]
             filename = filename[:-7] + "n00.mid"
 
-        next_filename = self.table.at[filename, f"{roll}"]
+        if self.params.max_sim:
+            roll = self.get_max_sim(filename)
 
-        # next_col = self.table.columns.get_loc(roll) + 1  # type: ignore
-        # console.log(
-        #     f"{self.p} looking for similarity at ['{filename}', '{self.table.columns[next_col]}']\n\t",
-        #     self.table.at[filename, self.table.columns[next_col]],
-        # )
-        # similarity = float(self.table.at[filename, self.table.columns[next_col]])
+        next_filename = self.table.at[filename, f"{roll}"]
 
         # when the source file is at the start or end of a track the prev/next
         # columns respectively can be None
@@ -360,27 +398,6 @@ class Seeker:
         next_col = self.table.columns.get_loc(roll) + 1  # type: ignore
         similarity = float(self.table.at[filename, self.table.columns[next_col]])
 
-        # console.log(f"{self.p} rolled {roll}")
-        # console.log(f"{self.p} columns\n{columns}")
-        # console.log(f"{self.p} table columns\n{self.table.columns}")
-
-        # for i, col in enumerate(columns[1:]):
-        #     if float(columns[i - 1]) < roll <= float(col):
-        #         console.log(
-        #             f"{self.p} found a match: {columns[i-1]} < {roll:.05f} <= {col}",
-        #         )
-
-        #         next_filename = self.table.at[filename, col]
-        #         next_col = self.table.columns[i * 2 + 1]
-
-        #         # console.log(
-        #         #     f"{self.p} looking for similarity ({i} -> {i * 2 + 1}) at ['{filename}', '{next_col}']\n\t",
-        #         #     self.table.at[filename, next_col],
-        #         # )
-        #         similarity = float(self.table.at[filename, next_col])
-
-        #         break
-
         # check transposition if using centered blur
         if self.params.calc_trans:
             next_filename, similarity = self.pitch_transpose(
@@ -390,14 +407,14 @@ class Seeker:
             )
 
         console.log(
-            f"{self.p} \tfound '{next_filename}' with similarity {similarity:03f}"
+            f"{self.p} \tfound '{next_filename}' with similarity {similarity:.03f}"
         )
 
         return next_filename, similarity
 
     def get_ms_to_recording(self, recording_path: str) -> Tuple[str | None, float]:
         console.log(
-            f"{self.p} finding most similar vector to '{recording_path}' with metric {self.params.property}"
+            f"{self.p} finding most similar vector to '{recording_path}' with metric '{self.params.property}'"
         )
 
         midi = pretty_midi.PrettyMIDI(recording_path)
@@ -409,6 +426,14 @@ class Seeker:
                 cmp_metric = metrics.blur_pr(midi, False)
             case "pr_blur_c":
                 cmp_metric = metrics.blur_pr(midi)
+            case "contour":
+                cmp_metric = metrics.contour(
+                    midi, self.params.beats_per_seg, self.params.tempo
+                )
+            case "contour-complex":
+                cmp_metric = metrics.contour(
+                    midi, self.params.beats_per_seg, self.params.tempo, False
+                )
             case _:
                 cmp_metric = midi.get_pitch_class_histogram()
 
@@ -427,7 +452,7 @@ class Seeker:
                 most_similar_vector = name
 
         console.log(
-            f"{self.p} \tfound '{most_similar_vector}' with similarity {highest_similarity:03f}"
+            f"{self.p} \tfound '{most_similar_vector}' with similarity {highest_similarity:.03f}"
         )
 
         if self.params.calc_trans:
@@ -470,22 +495,27 @@ class Seeker:
             self.table = None  # type: ignore
 
     def get_prev(self, filename):
-        i_name, i_seg_num, i_shift = filename.split("_")
+        # i_name, i_seg_num, i_shift = filename.split("_")
+        i_name, i_seg_num = filename.split("_")
         i_seg_start, i_seg_end = i_seg_num.split("-")
+        i_seg_end = i_seg_end.split(".")[0]
         delta = int(i_seg_end) - int(i_seg_start)
 
         if int(i_seg_start) == 0:
             return None
 
-        prev_file = f"{i_name}_{int(i_seg_start) - delta:04d}-{i_seg_start}_{i_shift}"
+        # prev_file = f"{i_name}_{int(i_seg_start) - delta:04d}-{i_seg_start}_{i_shift}"
+        prev_file = f"{i_name}_{int(i_seg_start) - delta:04d}-{i_seg_start}"
 
         for key in self.properties.keys():
-            k_name, k_seg_num, k_shift = key.split("_")
+            # k_name, k_seg_num, k_shift = key.split("_")
+            k_name, k_seg_num = key.split("_")
             k_seg_start, k_seg_end = k_seg_num.split("-")
+            k_seg_end = k_seg_end.split(".")[0]
 
             if (
                 k_name == i_name
-                and k_shift == i_shift
+                # and k_shift == i_shift
                 and abs(int(k_seg_end) - int(i_seg_start)) <= 2
             ):
                 prev_file = key
@@ -493,20 +523,25 @@ class Seeker:
         return prev_file
 
     def get_next(self, filename):
-        i_name, i_seg_num, i_shift = filename.split("_")
+        # i_name, i_seg_num, i_shift = filename.split("_")
+        i_name, i_seg_num = filename.split("_")
         i_seg_start, i_seg_end = i_seg_num.split("-")
+        i_seg_end = i_seg_end.split(".")[0]
         delta = int(i_seg_end) - int(i_seg_start)
 
-        next_file = f"{i_name}_{i_seg_end}-{int(i_seg_end) + delta:04d}_{i_shift}"
+        # next_file = f"{i_name}_{i_seg_end}-{int(i_seg_end) + delta:04d}_{i_shift}"
+        next_file = f"{i_name}_{i_seg_end}-{int(i_seg_end) + delta:04d}"
         if next_file not in self.properties.keys():
             next_file = None
             for key in self.properties.keys():
-                k_name, k_seg_num, k_shift = key.split("_")
+                # k_name, k_seg_num, k_shift = key.split("_")
+                k_name, k_seg_num = key.split("_")
                 k_seg_start, k_seg_end = k_seg_num.split("-")
+                k_seg_end = k_seg_end.split(".")[0]
 
                 if (
                     k_name == i_name
-                    and k_shift == i_shift
+                    # and k_shift == i_shift
                     and abs(int(k_seg_start) - int(i_seg_end)) <= 2
                 ):
                     next_file = key
@@ -581,3 +616,66 @@ class Seeker:
         self.count += 1
 
         return best_match, best_sim
+
+    def sort_row(self, row):
+        """Sorts the specified sections of a DataFrame row in descending order based on 'sim' values.
+
+        This function assumes the row contains a fixed part and a sortable part, where the sortable
+        part consists of 'diff' and 'sim' column pairs. The function sorts these pairs by the 'sim'
+        value in descending order while keeping each 'diff' directly in front of its corresponding 'sim'.
+
+        Args:
+            row (pd.Series): A single row of a DataFrame to be sorted. It is expected that the
+                            row contains mixed data types with 'diff' being filenames (str) and
+                            'sim' being numeric scores (float).
+
+        Returns:
+            pd.Series: A series with the first part unchanged and the last part sorted based on the
+                    'sim' values.
+
+        Note:
+            The function is designed to operate within a DataFrame.apply() method which allows it
+            to be applied row-wise. It specifically manages rows that split at index 10, where indices
+            from 10 onward contain 'diff' and 'sim' pairs.
+
+        Example:
+            # Assuming 'df' is a DataFrame loaded with the appropriate columns and data structure:
+            sorted_df = df.apply(sort_row, axis=1)
+        """
+        fixed_part = row.iloc[:10]  # Assumes the first 10 entries do not need sorting
+        to_sort_part = row.iloc[10:]  # The part that needs sorting
+
+        # Create a DataFrame from the parts that need sorting
+        # Assuming every two columns are 'diff' and 'sim' pairs starting from index 10
+        df_to_sort = pd.DataFrame(
+            {
+                "diff": to_sort_part[::2].values,  # Assumes even indices are 'diff'
+                "sim": to_sort_part[1::2].values,  # Assumes odd indices are 'sim'
+            },
+            index=pd.MultiIndex.from_arrays(
+                [to_sort_part[::2].index, to_sort_part[1::2].index]
+            ),
+        )
+
+        # Sort the DataFrame based on 'sim' values in descending order
+        sorted_df = df_to_sort.sort_values(by="sim", ascending=False)
+
+        # Flatten the sorted DataFrame back into a Series
+        sorted_series = pd.Series(
+            data=sorted_df.values.flatten(),
+            index=[idx for sub_idx in sorted_df.index for idx in sub_idx],
+        )
+
+        # Concatenate the fixed part and the sorted part
+        return pd.concat([fixed_part, sorted_series])
+
+    def get_max_sim(self, row_label):
+        row = self.table.loc[row_label]
+        most_similar_v = -1
+        most_similar_i = 1
+        for i, (k, v) in enumerate(row.items()):
+            if str(k).startswith("sim") and float(v) > most_similar_v:
+                most_similar_v = v
+                most_similar_i = i
+
+        return row.index[most_similar_i - 1]
