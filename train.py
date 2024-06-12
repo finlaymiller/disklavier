@@ -10,9 +10,10 @@ from omegaconf import OmegaConf
 
 from ml.data_tools.augmenter import DataAugmenter
 from ml.train import Trainer
+from ml.models import *
 
 from utils import console
-from utils.ml import load_model, init_weights
+from utils.ml import init_weights
 
 p = "[white]main[/white]   :"
 
@@ -20,19 +21,22 @@ p = "[white]main[/white]   :"
 def main(args, params):
     # model setup
     try:
-        model = load_model(params.model.name, params.model.path)
+        model = vae_models[params.model.name](**params.model)
+        # model = load_model(params.model.name, params.model.path)
     except ImportError as e:
         console.log(f"{p} {e}")
         sys.exit(1)
+
     console.log(f"{p} successfully loaded model '{params.model.name}':\n", model)
-    # model.apply(
-    #     lambda m: init_weights(m, params.model.w_init_min, params.model.w_init_max)
-    # )
-    # if os.path.exists(os.path.join(args.output_dir, "checkpoints")):
-    #     checkpoints = iglob(
-    #         os.path.join(os.path.join(args.output_dir, "checkpoints"), "*")
-    #     )
-    #     model_checkpoint = torch.load(max(checkpoints, key=os.path.getctime))
+    model.apply(
+        lambda m: init_weights(m, params.model.w_init_min, params.model.w_init_max)
+    )
+
+    if os.path.exists(os.path.join(args.output_dir, "checkpoints")) and params.model.load_ckpt:
+        checkpoints = iglob(
+            os.path.join(os.path.join(args.output_dir, "checkpoints"), "*")
+        )
+        model_checkpoint = torch.load(max(checkpoints, key=os.path.getctime))
 
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     device = torch.device(args.device)

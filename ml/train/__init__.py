@@ -152,7 +152,7 @@ class Trainer:
 
         clean_image = torch.from_numpy(np.expand_dims(image.cpu(), 0))
         test_image = image.to(self.device, copy=True)
-        output = self.model(test_image)
+        output: torch.Tensor = self.model(test_image)
 
         # images = [
         #     format_image(image),
@@ -174,7 +174,7 @@ class Trainer:
             plot_name = f"{datetime.now().strftime('%y%m%d-%H%M%S')}"
 
         plot_images(
-            images,
+            images, # type: ignore
             titles,
             main_title=f"{run_file}",
             outfile_name=plot_name,

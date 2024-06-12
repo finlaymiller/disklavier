@@ -1,7 +1,8 @@
 import torch
-from models.base import BaseVAE
 from torch import nn, Tensor
 from torch.nn import functional as F
+
+from .base import BaseVAE
 
 from typing import List
 
@@ -9,7 +10,11 @@ from typing import List
 class VanillaVAE(BaseVAE):
 
     def __init__(
-        self, in_channels: int, latent_dim: int, hidden_dims: List = None, **kwargs
+        self,
+        in_channels: int,
+        latent_dim: int,
+        hidden_dims: List | None = None,
+        **kwargs
     ) -> None:
         super(VanillaVAE, self).__init__()
 

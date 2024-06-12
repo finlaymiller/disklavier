@@ -26,11 +26,11 @@ device: "cuda:0"
 augmenter:
   seed: 108
   factor: 1
-  do_vshift: false
+  do_noise: false
   do_smear: false
+  do_vshift: false
   smear_radius: 3
   smear_filter: "max"
-  do_noise: true
   noise_factor: 0.05
   overfit_num: 0
   overfit_index: 0

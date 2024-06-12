@@ -234,7 +234,7 @@ def main():
         for file in names:
             r.json().set(f"file:{file}", "$", {f"{metric}": []}, nx=True)
             for t in mod_table:
-                s = 0  # NOTE: fix before switching to other metrics
+                s = 0  # NOTE: change before switching to other metrics
                 pch = transpose_and_shift_midi(
                     os.path.join(dataset_path, file), t, s
                 ).get_pitch_class_histogram(use_duration=True)

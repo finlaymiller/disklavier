@@ -1,3 +1,4 @@
+import random
 from torch.utils.data import Dataset
 
 from utils import console
@@ -10,7 +11,11 @@ class MIDILoopDataset(Dataset):
         multiplier: int = 1,
         transforms=None,
     ):
+        random.seed(multiplier)
+
         self.data = data * multiplier
+        random.shuffle(self.data)
+
         self.transforms = transforms
 
         console.log(

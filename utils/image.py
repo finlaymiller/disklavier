@@ -40,7 +40,11 @@ def plot_images(
         plt.title(titles[num_plot])
         plt.axis(set_axis)
 
-    plt.savefig(os.path.join(output_dir, outfile_name))
+    plt.savefig(
+        os.path.join(output_dir, outfile_name),
+        dpi=300,
+        bbox_inches="tight",
+    )
 
 
 def format_image(image: NDArray | torch.Tensor, remove_time=True) -> torch.Tensor:

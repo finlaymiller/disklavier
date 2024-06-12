@@ -16,7 +16,7 @@ from utils import console
 
 
 class DataAugmenter:
-    p = "[plum3]augment[/plum3]:"
+    p = "[purple]augment[/purple]:"
     dataset: Dataset
     dataset_name: str
     dataset_path: str
@@ -118,6 +118,7 @@ class DataAugmenter:
                 formatted_images = [
                     (img[0], format_image(img[1])) for img in random_images
                 ]
+                random.shuffle(formatted_images)
                 self.dataset = MIDILoopDataset(
                     formatted_images,
                     self.params.overfit_multiplier,
@@ -185,7 +186,7 @@ class DataAugmenter:
         return second_pass
 
     def _s2f(self):
-        """filter picker for smearing"""
+        """'string to filter' - filter picker for smearing"""
         match self.params.smear_filter:
             case "box":
                 return ImageFilter.BoxBlur
@@ -201,5 +202,5 @@ class DataAugmenter:
                 return ImageFilter.MaxFilter
 
     def _n2l(self, d: dict) -> List:
-        """"""
+        """'numpy to list' converter from npz"""
         return list(d.items())

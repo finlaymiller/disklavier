@@ -1,7 +1,8 @@
 import torch
-from models.base import BaseVAE
 from torch import nn, Tensor
 from torch.nn import functional as F
+
+from .base import BaseVAE
 
 from typing import List, Tuple, Union
 
