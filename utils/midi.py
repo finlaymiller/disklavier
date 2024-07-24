@@ -107,24 +107,6 @@ def lstrip_midi(mid: PrettyMIDI):
     return mid
 
 
-def stretch_midi_file(
-    midi: MidiFile, new_duration_seconds: float, caller: str = "[cyan]utils[/cyan] : "
-) -> MidiFile:
-    """"""
-    console.log(
-        f"{caller} rescaling file from {midi.length:.02f} s to {new_duration_seconds:.02f} s (x {new_duration_seconds / midi.length:.03f})"
-    )
-    # Calculate stretch factor based on the original duration
-    stretch_factor = new_duration_seconds / midi.length
-
-    # Scale the time attribute of each message by the stretch factor
-    for track in midi.tracks:
-        for msg in track:
-            msg.time = int(msg.time * stretch_factor)
-
-    return midi
-
-
 def set_tempo(input_file_path: str, bpm: int) -> None:
     """Sets the tempo of a MIDI file to a specified target tempo.
 
