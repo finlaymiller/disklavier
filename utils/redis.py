@@ -19,7 +19,7 @@ from typing import List
 
 
 class Comparison:
-    def __init__(self, sim, shift, trans, row, col, metric="pitch_histogram"):
+    def __init__(self, sim, shift, trans, row, col, metric):
         self.sim = float(sim)
         self.shift = int(shift)
         self.trans = int(trans)
@@ -56,7 +56,7 @@ def get_track_id(track_name: str) -> str:
 
 def store_vector(
     redis_client: redis.Redis, filename: str, metric: str, vector: np.ndarray
-):
+) -> None:
     """Store a vector in Redis using an efficient key-value structure.
 
     Args:
@@ -69,7 +69,6 @@ def store_vector(
     basename, transpose, shift = split_filename(filename)
     track_id = get_track_id(basename)
     # track_id = basename
-
     all_ids = redis_client.json().get("track_ids")
 
     if all_ids is None:
@@ -151,7 +150,7 @@ def load_vectors(
     return {k.decode("utf-8"): byte2arr(v) for k, v in vector_dict.items()}  # type: ignore
 
 
-def verify_df(r, row, df, p):
+def verify_df(r, row, df, p, metric):
     print(f"calculating mask...")
     mask = np.random.rand(*df.shape) < p
     print("arranging samples...")
@@ -171,7 +170,7 @@ def verify_df(r, row, df, p):
 
     with progress:
         for row, col, val in samples:
-            sim = r.json().get(f"cmp:{row}:{col}:pitch_histogram", "$.sim")
+            sim = r.json().get(f"cmp:{row}:{col}:{metric}", "$.sim")
 
             if sim != val:
                 print(f"value mismatch found at {row}:{col} -> {sim} != {val}")
@@ -181,9 +180,7 @@ def verify_df(r, row, df, p):
     print("check complete")
 
 
-def build_similarity_table(
-    all_files: List[str], output_path: str, metric: str = "pitch_histogram"
-):
+def build_similarity_table(all_files: List[str], output_path: str, metric: str):
     r = redis.Redis(host="localhost", port=6379, db=0)
     s_table = pd.DataFrame(index=all_files, columns=all_files)
 
@@ -267,10 +264,10 @@ def build_neighbor_table(all_files: List[str], output_path: str) -> None:
 
 
 def build_transformation_table(
-    all_files: List[str], output_path: str, metric: str = "pitch_histogram"
+    all_files: List[str], output_path: str, metric: str
 ) -> None:
     r = redis.Redis(host="localhost", port=6379, db=0)
-    column_names = [f"{t:02d}{s:02d}" for t, s in product(range(12), range(8))]
+    column_names = [f"{t:03d}{s:02d}" for t, s in product(range(128), range(8))]
     t_table = pd.DataFrame(index=all_files, columns=column_names)
 
     progress = Progress(
@@ -286,7 +283,7 @@ def build_transformation_table(
 
     with progress:
         for row_file in all_files:
-            results = load_vectors(r, f"{row_file[:-4]}_DISCARDED", metric)
+            results = load_vectors(r, f"{row_file[:-4]}_DISCARDED", metric, shape=(128,))
             for k, v in results.items():
                 t_table.at[row_file, k] = v
                 progress.advance(update_task)

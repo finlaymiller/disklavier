@@ -1,16 +1,18 @@
-import os
 import math
 import mido
-import itertools
 from pretty_midi import PrettyMIDI
 import numpy as np
-from scipy.spatial.distance import cosine
 
 from utils.midi import blur_pr
 
 from typing import Dict, List, Tuple
 
 TARGET_VEL = 80
+
+metrics = {
+    "pitch_histogram": lambda x: pitch_histogram(x),
+    "full_pitch_histogram": lambda x: full_pitch_histogram(x),
+}
 
 
 def all_properties(midi_path: str, filename: str, config) -> Dict:
@@ -280,6 +282,39 @@ def contour(midi: PrettyMIDI, num_beats: int, tempo: int, simple=True) -> List[T
                 results.append(0)
 
     return results
+
+
+def pitch_histogram(path: str):
+    return PrettyMIDI(path).get_pitch_class_histogram(True, True)
+
+
+def full_pitch_histogram(path: str):
+    """
+    Plots a normalized velocity- and duration-weighted pitch histogram of the piano notes in a MIDI file.
+
+    Args:
+        midi_file_path (str): The path to the MIDI file.
+    """
+    pitch_weights = np.zeros(128)
+    midi = mido.MidiFile(path)
+
+    for track in midi.tracks:
+        current_time = 0
+        note_on_times = {}
+
+        for msg in track:
+            current_time += msg.time
+            if msg.type == "note_on" and msg.velocity > 0:
+                note_on_times[msg.note] = current_time, msg.velocity
+            elif msg.type == "note_off" or (
+                msg.type == "note_on" and msg.velocity == 0
+            ):
+                if msg.note in note_on_times:
+                    start_time, velocity = note_on_times.pop(msg.note)
+                    duration = current_time - start_time
+                    pitch_weights[msg.note] += velocity * duration
+
+    return pitch_weights / np.sum(pitch_weights)
 
 
 ###############################################################################

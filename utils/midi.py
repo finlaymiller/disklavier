@@ -6,6 +6,7 @@ from pretty_midi import PrettyMIDI, Instrument, Note
 import cv2
 import numpy as np
 from scipy.signal import convolve2d
+from scipy.spatial.distance import cosine
 
 from utils import console
 
@@ -207,7 +208,7 @@ def semitone_transpose(
 
 
 def transform(file_path: str, out_dir: str, tempo: int, transformations: Dict, num_beats: int = 8) -> str:
-    new_filename = f"{Path(file_path).stem}_t{transformations["transpose"]:02d}s{transformations["shift"]:02d}.mid"
+    new_filename = f"{Path(file_path).stem}_t{transformations["transpose"]:03d}s{transformations["shift"]:02d}.mid"
     out_path = os.path.join(out_dir, new_filename)
     MidiFile(file_path).save(out_path) # in case transpose is 0
     if transformations["transpose"] != 0:
@@ -220,7 +221,7 @@ def transform(file_path: str, out_dir: str, tempo: int, transformations: Dict, n
                 transposed_instrument.notes.append(
                     Note(
                         velocity=note.velocity,
-                        pitch=note.pitch + int(transformations["transpose"]),
+                        pitch=(note.pitch + int(transformations["transpose"])) % 128, # 
                         start=note.start,
                         end=note.end,
                     )
@@ -282,8 +283,8 @@ def split_filename(filename: str, split_track=False) -> List[str]:
     """
 
     b, s, t = filename.split("_")
-    trans = t[1:3]
-    shift = t[4:6]
+    trans = t[1:4]
+    shift = t[5:7]
 
     if split_track:
         return [b, s, trans, shift]
@@ -294,7 +295,7 @@ def split_filename(filename: str, split_track=False) -> List[str]:
 
 
 def insert_transformations(filename: str, transformations: List[int]=[0,0]) -> str:
-    return f"{filename[:-4]}_t{transformations[0]:02d}s{transformations[1]:02d}{filename[-4:]}"
+    return f"{filename[:-4]}_t{transformations[0]:03d}s{transformations[1]:02d}.mid"
 
 
 def change_tempo(in_path: str, out_path: str, tempo: int):
@@ -483,3 +484,83 @@ def text_to_midi(filepath: str, tempo: int) -> None:
         for line in f.readlines():
             # console.log(f"[dark_sea_green2]midi[/dark_sea_green2]  : {line}")
             note_properties = line.split(" ")
+
+
+
+def pitch_histogram_full(midi_file_path: str) -> np.ndarray:
+    """
+    Plots a normalized velocity- and duration-weighted pitch histogram of the piano notes in a MIDI file.
+
+    Args:
+        midi_file_path (str): The path to the MIDI file.
+    """
+    pitch_weights = np.zeros(128)
+    mid = mido.MidiFile(midi_file_path)
+
+    for track in mid.tracks:
+        current_time = 0
+        note_on_times = {}
+
+        for msg in track:
+            current_time += msg.time
+            if msg.type == "note_on" and msg.velocity > 0:
+                note_on_times[msg.note] = current_time, msg.velocity
+            elif msg.type == "note_off" or (
+                msg.type == "note_on" and msg.velocity == 0
+            ):
+                if msg.note in note_on_times:
+                    start_time, velocity = note_on_times.pop(msg.note)
+                    duration = current_time - start_time
+                    if (
+                        duration > 0 and velocity > 0
+                    ):  # ensure non-zero duration and velocity
+                        pitch_weights[msg.note] += velocity * duration
+
+    return pitch_weights / np.sum(pitch_weights)
+
+
+def transpose_histogram(histogram, semitones):
+    """
+    Transposes a histogram by a given number of semitones.
+
+    Args:
+        histogram (dict): The input histogram with MIDI pitches as keys and normalized weights as values.
+        semitones (int): The number of semitones to transpose the histogram.
+
+    Returns:
+        dict: The transposed histogram.
+
+    NOTE: CHATGPT GENERATED
+    """
+    transposed_histogram = np.zeros(128)
+    for pitch, weight in enumerate(histogram):
+        transposed_histogram[(pitch + semitones) % 128] += weight
+    return transposed_histogram
+
+
+def find_optimal_transpose(histogram1, histogram2):
+    """
+    Finds the number of semitones needed to transpose the second histogram to minimize the cosine distance to the first histogram.
+
+    Args:
+        histogram1 (dict): The first histogram with MIDI pitches as keys and normalized weights as values.
+        histogram2 (dict): The second histogram with MIDI pitches as keys and normalized weights as values.
+
+    Returns:
+        int: The optimal number of semitones to transpose the second histogram.
+
+    NOTE: CHATGPT GENERATED
+    """
+
+    min_distance = float("inf")
+    optimal_transpose = 0
+
+    for semitones in range(0, 127):
+        transposed_histogram2 = transpose_histogram(histogram2, semitones)
+        distance = cosine(histogram1, transposed_histogram2)
+
+        if distance < min_distance:
+            min_distance = distance
+            optimal_transpose = semitones
+
+    return optimal_transpose

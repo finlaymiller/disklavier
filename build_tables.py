@@ -1,7 +1,6 @@
 import os
 import time
 import zipfile
-from pretty_midi import PrettyMIDI
 import numpy as np
 from rich import print
 from rich.pretty import pprint
@@ -17,6 +16,7 @@ from argparse import ArgumentParser
 
 from utils.midi import insert_transformations
 from utils.redis import *
+from utils.metrics import metrics
 
 from typing import List
 
@@ -49,8 +49,8 @@ def calc_sims(rows: List[str], all_rows: List[str], metric: str, index: int):
                 best_shift = -1
                 best_trans = -1
 
-                row_metric = load_vector(r, insert_transformations(row_file), metric)
-                col_metrics = load_vectors(r, insert_transformations(col_file), metric)
+                row_metric = load_vector(r, insert_transformations(row_file), metric, shape=(128,))
+                col_metrics = load_vectors(r, insert_transformations(col_file), metric, shape=(128,))
 
                 for key in col_metrics.keys():
                     similarity = np.dot(row_metric, col_metrics[key]) / (
@@ -59,7 +59,7 @@ def calc_sims(rows: List[str], all_rows: List[str], metric: str, index: int):
 
                     if similarity > best_sim:
                         best_sim = np.round(similarity, 5)
-                        best_shift = f"{key}"[:2]
+                        best_shift = f"{key}"[:3]
                         best_trans = f"{key}"[2:]
 
                 value = {
@@ -103,16 +103,15 @@ def main(args):
         MofNCompleteColumn(),
         refresh_per_second=1,
     )
-    pitch_histogram_task = progress.add_task(
+    metric_task = progress.add_task(
         f"uploading {args.metric}s", total=(len(all_filenames))
     )
     with progress:
         for file in all_filenames:
-            vector = PrettyMIDI(
-                os.path.join(train_dir, file)
-            ).get_pitch_class_histogram(True, True)
+            vector = metrics[args.metric](os.path.join(train_dir, file))
+            # print(vector, end='\r')
             store_vector(r, file, args.metric, vector)
-            progress.advance(pitch_histogram_task)
+            progress.advance(metric_task)
 
     # calculate similarities
     with ProcessPoolExecutor() as executor:
@@ -134,11 +133,11 @@ def main(args):
         table_list.append(parquet_path)
 
         start_time = time.time()
-        build_similarity_table(base_filenames, parquet_path)
+        build_similarity_table(base_filenames, parquet_path, args.metric)
         end_time = time.time()
 
         big_df = pd.read_parquet(parquet_path)
-        print(f"successfully built sim table '{parquet_path}'")
+        print(f"successfully built {args.metric} sim table '{parquet_path}'")
         pprint(big_df.head())
 
         memory_usage = big_df.memory_usage(index=True).sum()
@@ -172,11 +171,11 @@ def main(args):
         table_list.append(parquet_path)
 
         start_time = time.time()
-        build_transformation_table(base_filenames, parquet_path)
+        build_transformation_table(base_filenames, parquet_path, args.metric)
         end_time = time.time()
 
         big_df = pd.read_parquet(parquet_path)
-        print(f"successfully built transformation table '{parquet_path}':")
+        print(f"successfully built {args.metric} transformation table '{parquet_path}':")
         pprint(big_df.head())
 
         memory_usage = big_df.memory_usage(index=True).sum()
@@ -184,8 +183,7 @@ def main(args):
         print(f"Memory usage of DataFrame: {memory_usage / (1024 * 1024):.2f} MB")
         del big_df
 
-    # CHATGPT UNTESTED
-    zip_path = os.path.join("outputs", f"{args.dataset_name}_tables.zip")
+    zip_path = os.path.join("outputs", "tables", f"{args.dataset_name}_tables.zip")
     print(f"compressing to zipfile '{zip_path}'")
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
         for table in table_list:
