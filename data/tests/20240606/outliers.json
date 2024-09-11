@@ -1,0 +1,2217 @@
+[
+  {
+    "file": "20240124-064-04_0209-0217.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240123-070-03_0665-0671.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240305-050-07_0172-0182.mid",
+    "type": "over max segment length",
+    "value": 12.04909090909091
+  },
+  {
+    "file": "20240305-050-07_0172-0182.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240213-100-02_0110-0115.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240123-070-03_0754-0761.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240124-064-02_0644-0652.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-02_0287-0297.mid",
+    "type": "over max segment length",
+    "value": 11.98909090909091
+  },
+  {
+    "file": "20240124-064-02_0689-0697.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240213-100-01_0076-0081.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240213-100-04_0014-0019.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240122-055-05_0113-0122.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240511-088-03_0207-0212.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20231228-072-01_0213-0219.mid",
+    "type": "over max segment length",
+    "value": 13.151509890909091
+  },
+  {
+    "file": "20240305-050-07_0681-0691.mid",
+    "type": "over max segment length",
+    "value": 12.125454545454547
+  },
+  {
+    "file": "20231228-072-01_0226-0233.mid",
+    "type": "over max segment length",
+    "value": 12.560601036363638
+  },
+  {
+    "file": "20240305-050-07_0614-0623.mid",
+    "type": "over max segment length",
+    "value": 19.461818181818185
+  },
+  {
+    "file": "20240126-050-04_0451-0460.mid",
+    "type": "over max segment length",
+    "value": 11.836363636363638
+  },
+  {
+    "file": "20240124-064-04_0509-0517.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240511-068-01_0148-0155.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240122-055-04_0549-0558.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240305-050-08_0105-0115.mid",
+    "type": "over max segment length",
+    "value": 11.98909090909091
+  },
+  {
+    "file": "20231228-072-01_0219-0226.mid",
+    "type": "over max segment length",
+    "value": 12.613631318181818
+  },
+  {
+    "file": "20240511-088-02_0119-0125.mid",
+    "type": "under min velocity",
+    "value": 2
+  },
+  {
+    "file": "20231220-080-05_0029-0035.mid",
+    "type": "under min segment length",
+    "value": 4.3125
+  },
+  {
+    "file": "20240511-088-02_0005-0010.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240502-064-01_0277-0284.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240122-055-04_0069-0078.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240429-068-01_0105-0112.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-07_0556-0566.mid",
+    "type": "over max segment length",
+    "value": 11.836363636363638
+  },
+  {
+    "file": "20240305-050-07_0556-0566.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240123-070-03_0651-0658.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240429-068-06_0254-0261.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240124-064-03_0089-0097.mid",
+    "type": "under min note length",
+    "value": 0.008522718181818156
+  },
+  {
+    "file": "20240124-064-03_0089-0097.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240401-065-03_0162-0169.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240305-050-09_0038-0047.mid",
+    "type": "over max segment length",
+    "value": 11.912727272727274
+  },
+  {
+    "file": "20240429-068-03_0472-0479.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240121-070-02_0671-0678.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240227-076-05_0574-0580.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240426-068-01_1397-1404.mid",
+    "type": "under min note length",
+    "value": 0.008021381818181794
+  },
+  {
+    "file": "20240213-100-02_1252-1257.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-03_0076-0086.mid",
+    "type": "over max segment length",
+    "value": 11.874545454545455
+  },
+  {
+    "file": "20240305-050-07_0441-0451.mid",
+    "type": "over max segment length",
+    "value": 12.04909090909091
+  },
+  {
+    "file": "20240305-050-04_0115-0124.mid",
+    "type": "over max segment length",
+    "value": 12.038181818181819
+  },
+  {
+    "file": "20240123-070-03_0527-0534.mid",
+    "type": "under min note length",
+    "value": 0.007792199999999916
+  },
+  {
+    "file": "20240402-065-01_0265-0273.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240121-070-02_0191-0198.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240511-088-02_0038-0043.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240123-070-03_0884-0891.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240426-068-01_1376-1383.mid",
+    "type": "under min note length",
+    "value": 0.008021381818181794
+  },
+  {
+    "file": "20240402-065-04_0206-0214.mid",
+    "type": "under min note length",
+    "value": 0.008391599999999944
+  },
+  {
+    "file": "20240227-076-03_0340-0347.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240123-070-04_0706-0713.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240312-080-01_0173-0179.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-07_0076-0086.mid",
+    "type": "over max segment length",
+    "value": 11.950909090909091
+  },
+  {
+    "file": "20240124-064-02_0599-0607.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240124-064-02_0502-0509.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240123-070-07_0994-1001.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240213-100-02_0268-0273.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240312-080-03_0317-0323.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20231220-080-07_0221-0227.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-03_0115-0124.mid",
+    "type": "over max segment length",
+    "value": 12.414545454545456
+  },
+  {
+    "file": "20240213-100-02_0115-0119.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240117-064-01_0007-0014.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240227-076-02_0050-0056.mid",
+    "type": "under min note length",
+    "value": 0.007177027272726733
+  },
+  {
+    "file": "20240511-088-03_0250-0256.mid",
+    "type": "under min note length",
+    "value": 0.00929751818181801
+  },
+  {
+    "file": "20240312-080-03_0287-0293.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240123-070-03_0706-0713.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240312-080-03_0149-0155.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-08_0191-0201.mid",
+    "type": "over max segment length",
+    "value": 11.836363636363638
+  },
+  {
+    "file": "20240402-065-03_0058-0066.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240117-064-06_0262-0269.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20231228-072-01_0046-0053.mid",
+    "type": "over max segment length",
+    "value": 12.371207172727273
+  },
+  {
+    "file": "20240305-050-08_0095-0105.mid",
+    "type": "over max segment length",
+    "value": 12.076363636363638
+  },
+  {
+    "file": "20240502-064-04_0397-0404.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-09_0153-0163.mid",
+    "type": "over max segment length",
+    "value": 11.852727272727273
+  },
+  {
+    "file": "20240126-050-04_0278-0287.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240126-050-04_0278-0287.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240126-050-04_0278-0287.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-07_0115-0124.mid",
+    "type": "over max segment length",
+    "value": 12.04909090909091
+  },
+  {
+    "file": "20240305-050-08_0182-0191.mid",
+    "type": "over max segment length",
+    "value": 12.250909090909092
+  },
+  {
+    "file": "20240305-050-09_0019-0028.mid",
+    "type": "over max segment length",
+    "value": 11.972727272727274
+  },
+  {
+    "file": "20240305-050-09_0019-0028.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20231227-080-04_0065-0071.mid",
+    "type": "under min note length",
+    "value": 0.006818181818181834
+  },
+  {
+    "file": "20240123-070-07_0143-0150.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240123-070-03_1391-1398.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240401-065-03_0250-0258.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-03_0374-0383.mid",
+    "type": "over max segment length",
+    "value": 12.136363636363637
+  },
+  {
+    "file": "20240305-050-07_0412-0422.mid",
+    "type": "over max segment length",
+    "value": 12.04909090909091
+  },
+  {
+    "file": "20240511-088-03_0070-0076.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20231228-072-01_0079-0086.mid",
+    "type": "over max segment length",
+    "value": 12.15151029090909
+  },
+  {
+    "file": "20240227-076-02_0258-0265.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240123-070-03_1570-1577.mid",
+    "type": "over max segment length",
+    "value": 11.9376504
+  },
+  {
+    "file": "20240122-055-05_0296-0305.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20231228-072-01_0259-0266.mid",
+    "type": "over max segment length",
+    "value": 13.204540172727274
+  },
+  {
+    "file": "20240121-070-08_0164-0171.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20231228-072-01_0253-0259.mid",
+    "type": "over max segment length",
+    "value": 12.969691781818183
+  },
+  {
+    "file": "20240305-050-07_0489-0499.mid",
+    "type": "over max segment length",
+    "value": 11.923636363636364
+  },
+  {
+    "file": "20240123-070-04_0185-0191.mid",
+    "type": "over max segment length",
+    "value": 20.3571225
+  },
+  {
+    "file": "20240123-070-04_0185-0191.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240123-070-04_0185-0191.mid",
+    "type": "over max note length",
+    "value": 13.4454411
+  },
+  {
+    "file": "20240305-050-08_0086-0095.mid",
+    "type": "over max segment length",
+    "value": 12.038181818181819
+  },
+  {
+    "file": "20231228-072-01_0266-0273.mid",
+    "type": "over max segment length",
+    "value": 12.553025281818183
+  },
+  {
+    "file": "20240123-070-03_0562-0569.mid",
+    "type": "under min note length",
+    "value": 0.007792199999999916
+  },
+  {
+    "file": "20240123-070-04_0164-0171.mid",
+    "type": "over max segment length",
+    "value": 13.4649216
+  },
+  {
+    "file": "20240227-076-03_0486-0492.mid",
+    "type": "under min segment length",
+    "value": 4.367221095454546
+  },
+  {
+    "file": "20240312-080-01_0161-0167.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240305-050-08_0163-0172.mid",
+    "type": "over max segment length",
+    "value": 12.185454545454546
+  },
+  {
+    "file": "20240124-064-03_0314-0322.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240305-050-07_0374-0383.mid",
+    "type": "over max segment length",
+    "value": 11.972727272727274
+  },
+  {
+    "file": "20240502-064-04_0202-0209.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240511-068-01_0014-0021.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240511-068-01_0197-0204.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240227-076-02_0271-0277.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240426-068-01_0550-0557.mid",
+    "type": "under min note length",
+    "value": 0.008021381818181794
+  },
+  {
+    "file": "20231220-080-02_0269-0275.mid",
+    "type": "under min note length",
+    "value": 0.006818181818181834
+  },
+  {
+    "file": "20231220-080-02_0269-0275.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240511-088-03_0212-0218.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240511-050-01_0326-0335.mid",
+    "type": "under min segment length",
+    "value": 3.6381818181818186
+  },
+  {
+    "file": "20240123-070-04_0740-0747.mid",
+    "type": "under min note length",
+    "value": 0.007792199999999916
+  },
+  {
+    "file": "20240124-064-03_0359-0367.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240124-064-03_0359-0367.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-08_0134-0143.mid",
+    "type": "over max segment length",
+    "value": 12.04909090909091
+  },
+  {
+    "file": "20240227-076-05_0656-0663.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240123-070-04_0157-0164.mid",
+    "type": "over max segment length",
+    "value": 20.2753044
+  },
+  {
+    "file": "20240123-070-04_0157-0164.mid",
+    "type": "over max note length",
+    "value": 18.5805009
+  },
+  {
+    "file": "20240402-065-04_0184-0191.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240213-100-02_1137-1142.mid",
+    "type": "under min note length",
+    "value": 0.0054545454545449346
+  },
+  {
+    "file": "20240305-050-07_0431-0441.mid",
+    "type": "over max segment length",
+    "value": 12.000000000000002
+  },
+  {
+    "file": "20240126-050-04_0287-0297.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240126-050-04_0287-0297.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-03_0297-0307.mid",
+    "type": "over max segment length",
+    "value": 11.852727272727273
+  },
+  {
+    "file": "20240305-050-03_0355-0364.mid",
+    "type": "over max segment length",
+    "value": 12.201818181818183
+  },
+  {
+    "file": "20240426-068-01_1369-1376.mid",
+    "type": "under min note length",
+    "value": 0.008021381818181794
+  },
+  {
+    "file": "20231220-080-01_0143-0149.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240227-076-05_0435-0442.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240213-100-06_0532-0537.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240305-050-5a_0057-0067.mid",
+    "type": "over max segment length",
+    "value": 11.912727272727274
+  },
+  {
+    "file": "20240305-050-5a_0057-0067.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20231220-080-02_0437-0443.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20231220-080-02_0437-0443.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20231220-080-02_0245-0251.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20231228-072-01_0233-0239.mid",
+    "type": "over max segment length",
+    "value": 12.102267886363636
+  },
+  {
+    "file": "20240121-070-02_0164-0171.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240213-100-05_0297-0302.mid",
+    "type": "under min note length",
+    "value": 0.005454545454545379
+  },
+  {
+    "file": "20240305-050-03_0057-0067.mid",
+    "type": "over max segment length",
+    "value": 11.923636363636364
+  },
+  {
+    "file": "20240305-050-07_0460-0470.mid",
+    "type": "over max segment length",
+    "value": 12.763636363636365
+  },
+  {
+    "file": "20240124-064-03_0374-0382.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240426-068-01_0282-0289.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240213-100-05_0191-0196.mid",
+    "type": "under min note length",
+    "value": 0.005454545454545379
+  },
+  {
+    "file": "20240305-050-5a_0019-0028.mid",
+    "type": "over max segment length",
+    "value": 11.814545454545456
+  },
+  {
+    "file": "20240126-050-02_0115-0124.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240122-055-05_0375-0383.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240122-055-04_0078-0087.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-04_0038-0047.mid",
+    "type": "over max segment length",
+    "value": 12.04909090909091
+  },
+  {
+    "file": "20240227-076-03_0119-0126.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240426-068-01_0197-0204.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240426-068-01_0197-0204.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-07_0652-0662.mid",
+    "type": "over max segment length",
+    "value": 11.863636363636365
+  },
+  {
+    "file": "20240122-055-04_0558-0567.mid",
+    "type": "under min note length",
+    "value": 0.009917354545454948
+  },
+  {
+    "file": "20240305-050-07_0153-0163.mid",
+    "type": "over max segment length",
+    "value": 20.612727272727273
+  },
+  {
+    "file": "20240312-080-06_0209-0215.mid",
+    "type": "under min note length",
+    "value": 0.006818181818181834
+  },
+  {
+    "file": "20240213-100-02_1175-1180.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240117-064-01_0157-0164.mid",
+    "type": "under min note length",
+    "value": 0.008522718181818156
+  },
+  {
+    "file": "20240305-050-07_0019-0028.mid",
+    "type": "over max segment length",
+    "value": 12.087272727272728
+  },
+  {
+    "file": "20240123-070-04_0281-0287.mid",
+    "type": "over max segment length",
+    "value": 18.9116694
+  },
+  {
+    "file": "20240123-070-04_0281-0287.mid",
+    "type": "over max note length",
+    "value": 13.741544700000002
+  },
+  {
+    "file": "20240213-100-05_0134-0139.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20231220-080-02_0065-0071.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240123-070-04_0171-0178.mid",
+    "type": "over max segment length",
+    "value": 13.4298567
+  },
+  {
+    "file": "20231228-072-01_0053-0059.mid",
+    "type": "over max segment length",
+    "value": 16.007569354545456
+  },
+  {
+    "file": "20240121-070-09_0068-0075.mid",
+    "type": "under min note length",
+    "value": 0.00779220000000036
+  },
+  {
+    "file": "20231228-072-01_0086-0093.mid",
+    "type": "over max segment length",
+    "value": 12.185601186363638
+  },
+  {
+    "file": "20240511-088-02_0114-0119.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240124-064-03_0367-0374.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240511-050-01_0230-0239.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240213-100-06_0686-0691.mid",
+    "type": "under min note length",
+    "value": 0.008181818181817846
+  },
+  {
+    "file": "20240429-068-03_0395-0402.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240511-068-01_0141-0148.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240312-080-03_0335-0341.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-5a_0038-0047.mid",
+    "type": "over max segment length",
+    "value": 12.076363636363638
+  },
+  {
+    "file": "20240511-088-03_0234-0239.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-09_0076-0086.mid",
+    "type": "over max segment length",
+    "value": 11.950909090909091
+  },
+  {
+    "file": "20240121-070-02_0329-0335.mid",
+    "type": "under min note length",
+    "value": 0.007792199999999916
+  },
+  {
+    "file": "20240121-070-02_0329-0335.mid",
+    "type": "under min note length",
+    "value": 0.007792199999999916
+  },
+  {
+    "file": "20240305-050-08_0047-0057.mid",
+    "type": "over max segment length",
+    "value": 11.950909090909091
+  },
+  {
+    "file": "20240126-050-04_0268-0278.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-03_0307-0316.mid",
+    "type": "over max segment length",
+    "value": 11.874545454545455
+  },
+  {
+    "file": "20240305-050-04_0019-0028.mid",
+    "type": "over max segment length",
+    "value": 12.125454545454547
+  },
+  {
+    "file": "20231220-080-01_0401-0407.mid",
+    "type": "under min note length",
+    "value": 0.006818181818181834
+  },
+  {
+    "file": "20240305-050-08_0143-0153.mid",
+    "type": "over max segment length",
+    "value": 12.000000000000002
+  },
+  {
+    "file": "20231228-072-01_0293-0299.mid",
+    "type": "over max segment length",
+    "value": 12.439388963636365
+  },
+  {
+    "file": "20240305-050-03_0393-0403.mid",
+    "type": "over max segment length",
+    "value": 12.452727272727273
+  },
+  {
+    "file": "20240511-050-01_0172-0182.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240305-050-09_0172-0182.mid",
+    "type": "over max segment length",
+    "value": 11.901818181818182
+  },
+  {
+    "file": "20231228-072-01_0273-0279.mid",
+    "type": "over max segment length",
+    "value": 12.734843390909091
+  },
+  {
+    "file": "20240429-068-03_0077-0084.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20231228-072-01_0246-0253.mid",
+    "type": "over max segment length",
+    "value": 13.204540172727274
+  },
+  {
+    "file": "20240124-064-02_0457-0464.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240312-080-05_0131-0137.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240227-076-03_0100-0107.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240227-076-03_0100-0107.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240126-050-04_0134-0143.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240502-064-04_0389-0397.mid",
+    "type": "under min note length",
+    "value": 0.008522718181818156
+  },
+  {
+    "file": "20240312-080-05_0005-0011.mid",
+    "type": "under min segment length",
+    "value": 4.384090909090909
+  },
+  {
+    "file": "20240312-080-06_0089-0095.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240305-050-04_0057-0067.mid",
+    "type": "over max segment length",
+    "value": 11.836363636363638
+  },
+  {
+    "file": "20240227-076-03_0044-0050.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240122-055-06_0244-0252.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240213-100-02_0619-0623.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240123-070-03_1254-1261.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-07_0393-0403.mid",
+    "type": "over max segment length",
+    "value": 11.923636363636364
+  },
+  {
+    "file": "20240126-050-04_0422-0431.mid",
+    "type": "over max segment length",
+    "value": 11.863636363636365
+  },
+  {
+    "file": "20240305-050-01_0086-0095.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240126-050-04_0470-0479.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240227-076-02_0397-0404.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240227-076-05_0719-0726.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240123-070-03_1638-1645.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-09_0047-0057.mid",
+    "type": "over max segment length",
+    "value": 11.874545454545455
+  },
+  {
+    "file": "20240401-065-02_0494-0502.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240213-100-02_0302-0307.mid",
+    "type": "under min note length",
+    "value": 0.008181818181818179
+  },
+  {
+    "file": "20240305-050-08_0076-0086.mid",
+    "type": "over max segment length",
+    "value": 12.010909090909092
+  },
+  {
+    "file": "20240426-068-01_1312-1319.mid",
+    "type": "under min note length",
+    "value": 0.008021381818181794
+  },
+  {
+    "file": "20240124-064-03_0404-0412.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240213-100-02_0023-0028.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240123-070-02_0082-0089.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240227-076-01_0410-0416.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240429-068-04_0098-0105.mid",
+    "type": "under min note length",
+    "value": 0.008021381818181794
+  },
+  {
+    "file": "20240305-050-03_0249-0259.mid",
+    "type": "over max segment length",
+    "value": 11.852727272727273
+  },
+  {
+    "file": "20240305-050-03_0249-0259.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240305-050-07_0403-0412.mid",
+    "type": "over max segment length",
+    "value": 68.32363636363637
+  },
+  {
+    "file": "20240305-050-07_0403-0412.mid",
+    "type": "over max note length",
+    "value": 61.11272727272728
+  },
+  {
+    "file": "20240213-100-02_1031-1036.mid",
+    "type": "under min note length",
+    "value": 0.008181818181818734
+  },
+  {
+    "file": "20240213-100-02_1031-1036.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240312-080-05_0041-0047.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240312-080-05_0041-0047.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240123-070-03_1069-1076.mid",
+    "type": "under min note length",
+    "value": 0.007792200000000027
+  },
+  {
+    "file": "20240123-070-03_1069-1076.mid",
+    "type": "under min note length",
+    "value": 0.007792199999999916
+  },
+  {
+    "file": "20240122-055-02_0322-0331.mid",
+    "type": "under min note length",
+    "value": 0.009917354545454504
+  },
+  {
+    "file": "20240305-050-03_0278-0287.mid",
+    "type": "over max segment length",
+    "value": 12.06
+  },
+  {
+    "file": "20240227-076-01_0460-0467.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-04_0095-0105.mid",
+    "type": "over max segment length",
+    "value": 16.53818181818182
+  },
+  {
+    "file": "20240117-064-06_0637-0644.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240121-070-09_0123-0130.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240213-100-02_1094-1099.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240213-100-02_0095-0100.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-07_0700-0710.mid",
+    "type": "over max segment length",
+    "value": 12.076363636363638
+  },
+  {
+    "file": "20240117-064-01_0089-0097.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240402-065-01_0014-0022.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240213-100-02_0657-0662.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240227-076-01_0183-0189.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240402-065-01_0125-0132.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240213-100-02_0086-0091.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-07_0479-0489.mid",
+    "type": "over max segment length",
+    "value": 20.525454545454547
+  },
+  {
+    "file": "20240305-050-07_0479-0489.mid",
+    "type": "over max note length",
+    "value": 18.08727272727273
+  },
+  {
+    "file": "20240305-050-07_0604-0614.mid",
+    "type": "over max segment length",
+    "value": 12.076363636363638
+  },
+  {
+    "file": "20231220-080-08_0071-0077.mid",
+    "type": "under min note length",
+    "value": 0.006818181818181834
+  },
+  {
+    "file": "20231228-072-01_0153-0159.mid",
+    "type": "over max segment length",
+    "value": 15.374993850000001
+  },
+  {
+    "file": "20240124-064-02_0412-0419.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240511-088-01_0125-0130.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240121-070-02_1076-1083.mid",
+    "type": "under min note length",
+    "value": 0.007792199999999916
+  },
+  {
+    "file": "20240121-070-02_1076-1083.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240117-064-2b_0074-0082.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20231228-072-01_0379-0386.mid",
+    "type": "over max segment length",
+    "value": 37.92422725454546
+  },
+  {
+    "file": "20231228-072-01_0379-0386.mid",
+    "type": "over max note length",
+    "value": 31.909078145454547
+  },
+  {
+    "file": "20231228-072-01_0379-0386.mid",
+    "type": "over max note length",
+    "value": 32.9166535
+  },
+  {
+    "file": "20240305-050-09_0009-0019.mid",
+    "type": "over max segment length",
+    "value": 11.961818181818183
+  },
+  {
+    "file": "20240305-050-07_0623-0633.mid",
+    "type": "over max segment length",
+    "value": 12.272727272727273
+  },
+  {
+    "file": "20240305-050-07_0499-0508.mid",
+    "type": "over max segment length",
+    "value": 20.19818181818182
+  },
+  {
+    "file": "20240305-050-07_0499-0508.mid",
+    "type": "over max note length",
+    "value": 18.69818181818182
+  },
+  {
+    "file": "20240126-050-04_0412-0422.mid",
+    "type": "over max segment length",
+    "value": 11.863636363636365
+  },
+  {
+    "file": "20240305-050-03_0105-0115.mid",
+    "type": "over max segment length",
+    "value": 16.53818181818182
+  },
+  {
+    "file": "20240123-070-03_0493-0500.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-08_0172-0182.mid",
+    "type": "over max segment length",
+    "value": 12.185454545454546
+  },
+  {
+    "file": "20240511-088-03_0147-0152.mid",
+    "type": "over max segment length",
+    "value": 14.4886325
+  },
+  {
+    "file": "20240426-068-01_0494-0501.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-04_0028-0038.mid",
+    "type": "over max segment length",
+    "value": 11.885454545454547
+  },
+  {
+    "file": "20240126-050-04_0259-0268.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240126-050-04_0259-0268.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240305-050-09_0143-0153.mid",
+    "type": "over max segment length",
+    "value": 11.961818181818183
+  },
+  {
+    "file": "20240305-050-5a_0105-0115.mid",
+    "type": "over max segment length",
+    "value": 11.885454545454547
+  },
+  {
+    "file": "20240305-050-03_0086-0095.mid",
+    "type": "over max segment length",
+    "value": 12.010909090909092
+  },
+  {
+    "file": "20240123-070-03_0836-0843.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240117-064-01_0209-0217.mid",
+    "type": "under min note length",
+    "value": 0.008522718181818156
+  },
+  {
+    "file": "20240124-064-03_0164-0172.mid",
+    "type": "under min note length",
+    "value": 0.008522718181818156
+  },
+  {
+    "file": "20240305-050-03_0335-0345.mid",
+    "type": "over max segment length",
+    "value": 11.98909090909091
+  },
+  {
+    "file": "20240305-050-07_0451-0460.mid",
+    "type": "over max segment length",
+    "value": 12.076363636363638
+  },
+  {
+    "file": "20240227-076-05_0473-0479.mid",
+    "type": "under min note length",
+    "value": 0.007177027272727621
+  },
+  {
+    "file": "20240213-100-02_0211-0215.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240511-088-01_0218-0223.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240123-070-06_0027-0034.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240312-080-05_0000-0005.mid",
+    "type": "under min segment length",
+    "value": 3.634090909090909
+  },
+  {
+    "file": "20240305-050-07_0691-0700.mid",
+    "type": "over max segment length",
+    "value": 12.076363636363638
+  },
+  {
+    "file": "20240126-050-02_0201-0211.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240511-050-01_0470-0479.mid",
+    "type": "under min segment length",
+    "value": 3.850909090909091
+  },
+  {
+    "file": "20231227-080-04_0041-0047.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240305-050-07_0547-0556.mid",
+    "type": "over max segment length",
+    "value": 12.714545454545455
+  },
+  {
+    "file": "20240123-070-03_0479-0486.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240227-076-05_0492-0498.mid",
+    "type": "under min note length",
+    "value": 0.007177027272727177
+  },
+  {
+    "file": "20240227-076-05_0492-0498.mid",
+    "type": "under min note length",
+    "value": 0.007177027272727621
+  },
+  {
+    "file": "20240227-076-05_0492-0498.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240305-050-09_0124-0134.mid",
+    "type": "over max segment length",
+    "value": 12.376363636363637
+  },
+  {
+    "file": "20240123-070-01_0041-0047.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240123-070-01_0041-0047.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240126-050-04_0172-0182.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-07_0086-0095.mid",
+    "type": "over max segment length",
+    "value": 12.185454545454546
+  },
+  {
+    "file": "20240305-050-09_0134-0143.mid",
+    "type": "over max segment length",
+    "value": 11.961818181818183
+  },
+  {
+    "file": "20240122-055-04_0427-0436.mid",
+    "type": "under min note length",
+    "value": 0.00991735454545406
+  },
+  {
+    "file": "20240227-076-02_0277-0284.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240227-076-03_0082-0088.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-07_0028-0038.mid",
+    "type": "over max segment length",
+    "value": 12.09818181818182
+  },
+  {
+    "file": "20240305-050-07_0671-0681.mid",
+    "type": "over max segment length",
+    "value": 12.201818181818183
+  },
+  {
+    "file": "20240429-068-03_0176-0183.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20231228-072-01_0113-0119.mid",
+    "type": "over max segment length",
+    "value": 13.628782427272728
+  },
+  {
+    "file": "20240213-100-01_0023-0028.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240312-080-03_0311-0317.mid",
+    "type": "under min note length",
+    "value": 0.006818181818181834
+  },
+  {
+    "file": "20240126-050-04_0441-0451.mid",
+    "type": "over max segment length",
+    "value": 11.961818181818183
+  },
+  {
+    "file": "20240305-050-07_0508-0518.mid",
+    "type": "over max segment length",
+    "value": 11.814545454545456
+  },
+  {
+    "file": "20240117-064-03_0000-0007.mid",
+    "type": "under min segment length",
+    "value": 0.0
+  },
+  {
+    "file": "20240305-050-03_0095-0105.mid",
+    "type": "over max segment length",
+    "value": 11.961818181818183
+  },
+  {
+    "file": "20240227-076-01_0195-0202.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20231220-080-07_0239-0245.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-03_0067-0076.mid",
+    "type": "over max segment length",
+    "value": 11.852727272727273
+  },
+  {
+    "file": "20240213-100-02_1156-1161.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240227-076-05_0549-0555.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240401-065-03_0073-0081.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-08_0115-0124.mid",
+    "type": "over max segment length",
+    "value": 12.06
+  },
+  {
+    "file": "20240305-050-07_0182-0191.mid",
+    "type": "over max segment length",
+    "value": 12.06
+  },
+  {
+    "file": "20240305-050-07_0182-0191.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240305-050-5a_0067-0076.mid",
+    "type": "over max segment length",
+    "value": 11.836363636363638
+  },
+  {
+    "file": "20240216-065-01_0472-0479.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240123-070-03_1398-1405.mid",
+    "type": "under min note length",
+    "value": 0.007792200000000138
+  },
+  {
+    "file": "20240124-064-02_0539-0547.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240305-050-07_0067-0076.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240121-070-02_0198-0205.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-07_0095-0105.mid",
+    "type": "over max segment length",
+    "value": 12.04909090909091
+  },
+  {
+    "file": "20240305-050-07_0095-0105.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-07_0191-0201.mid",
+    "type": "over max segment length",
+    "value": 11.874545454545455
+  },
+  {
+    "file": "20240124-064-02_0239-0247.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240305-050-07_0662-0671.mid",
+    "type": "over max segment length",
+    "value": 12.223636363636365
+  },
+  {
+    "file": "20240305-050-03_0364-0374.mid",
+    "type": "over max segment length",
+    "value": 12.212727272727273
+  },
+  {
+    "file": "20240426-068-01_0557-0564.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240124-064-02_0374-0382.mid",
+    "type": "over max segment length",
+    "value": 11.923282736363635
+  },
+  {
+    "file": "20240213-100-02_0369-0374.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240123-070-04_0198-0205.mid",
+    "type": "over max segment length",
+    "value": 23.6688075
+  },
+  {
+    "file": "20240123-070-04_0198-0205.mid",
+    "type": "over max note length",
+    "value": 16.8038793
+  },
+  {
+    "file": "20240123-070-03_1268-1275.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240117-064-2b_0149-0157.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-04_0047-0057.mid",
+    "type": "over max segment length",
+    "value": 11.836363636363638
+  },
+  {
+    "file": "20240122-055-02_0348-0357.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240126-050-02_0191-0201.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240126-050-02_0191-0201.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-08_0153-0163.mid",
+    "type": "over max segment length",
+    "value": 12.06
+  },
+  {
+    "file": "20240122-055-05_0087-0095.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-09_0182-0191.mid",
+    "type": "over max segment length",
+    "value": 12.136363636363637
+  },
+  {
+    "file": "20231228-072-01_0386-0393.mid",
+    "type": "over max segment length",
+    "value": 30.147715213636364
+  },
+  {
+    "file": "20231228-072-01_0386-0393.mid",
+    "type": "over max note length",
+    "value": 23.446960318181816
+  },
+  {
+    "file": "20240123-070-04_0150-0157.mid",
+    "type": "over max segment length",
+    "value": 20.2869927
+  },
+  {
+    "file": "20240123-070-04_0150-0157.mid",
+    "type": "over max note length",
+    "value": 13.7766096
+  },
+  {
+    "file": "20240123-070-04_0150-0157.mid",
+    "type": "over max note length",
+    "value": 18.5805009
+  },
+  {
+    "file": "20240426-068-01_0875-0882.mid",
+    "type": "under min note length",
+    "value": 0.008021381818181794
+  },
+  {
+    "file": "20240121-070-04_0377-0383.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240213-100-02_0422-0427.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-09_0191-0201.mid",
+    "type": "over max segment length",
+    "value": 12.610909090909091
+  },
+  {
+    "file": "20240126-050-02_0182-0191.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240126-050-02_0182-0191.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240126-050-02_0182-0191.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240213-100-02_1142-1147.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240305-050-03_0268-0278.mid",
+    "type": "over max segment length",
+    "value": 12.04909090909091
+  },
+  {
+    "file": "20240511-088-01_0261-0267.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240123-070-03_0541-0548.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20231227-080-06_0161-0167.mid",
+    "type": "under min note length",
+    "value": 0.006818181818181834
+  },
+  {
+    "file": "20240126-050-04_0393-0403.mid",
+    "type": "over max segment length",
+    "value": 12.000000000000002
+  },
+  {
+    "file": "20240305-050-07_0527-0537.mid",
+    "type": "over max segment length",
+    "value": 12.66
+  },
+  {
+    "file": "20240305-050-03_0124-0134.mid",
+    "type": "over max segment length",
+    "value": 12.010909090909092
+  },
+  {
+    "file": "20240305-050-07_0422-0431.mid",
+    "type": "over max segment length",
+    "value": 12.076363636363638
+  },
+  {
+    "file": "20240305-050-04_0009-0019.mid",
+    "type": "over max segment length",
+    "value": 11.912727272727274
+  },
+  {
+    "file": "20240502-064-01_0000-0007.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240305-050-07_0470-0479.mid",
+    "type": "over max segment length",
+    "value": 12.327272727272728
+  },
+  {
+    "file": "20240402-065-02_0000-0007.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240511-050-01_0691-0700.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20231228-072-01_0239-0246.mid",
+    "type": "over max segment length",
+    "value": 20.018931386363636
+  },
+  {
+    "file": "20231228-072-01_0239-0246.mid",
+    "type": "over max note length",
+    "value": 13.333328
+  },
+  {
+    "file": "20240426-068-01_1016-1023.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-09_0163-0172.mid",
+    "type": "over max segment length",
+    "value": 11.940000000000001
+  },
+  {
+    "file": "20240305-050-09_0163-0172.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240123-070-04_0178-0185.mid",
+    "type": "over max segment length",
+    "value": 13.4999865
+  },
+  {
+    "file": "20240213-100-02_1007-1012.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240126-050-02_0163-0172.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240305-050-07_0124-0134.mid",
+    "type": "over max segment length",
+    "value": 12.027272727272727
+  },
+  {
+    "file": "20240124-064-02_0524-0532.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-07_0201-0211.mid",
+    "type": "over max segment length",
+    "value": 11.901818181818182
+  },
+  {
+    "file": "20240401-065-03_0191-0199.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-07_0134-0143.mid",
+    "type": "over max segment length",
+    "value": 11.972727272727274
+  },
+  {
+    "file": "20240227-076-03_0290-0296.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240401-065-02_0250-0258.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-09_0028-0038.mid",
+    "type": "over max segment length",
+    "value": 11.814545454545456
+  },
+  {
+    "file": "20240123-070-04_0102-0109.mid",
+    "type": "over max segment length",
+    "value": 11.9025855
+  },
+  {
+    "file": "20231220-080-02_0233-0239.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240227-076-05_0366-0372.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240124-064-02_0127-0134.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240117-064-06_0359-0367.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240123-070-03_1419-1426.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240227-076-05_0423-0429.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240213-100-02_0724-0729.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240429-068-02_0056-0063.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-07_0518-0527.mid",
+    "type": "over max segment length",
+    "value": 12.076363636363638
+  },
+  {
+    "file": "20240305-050-07_0575-0585.mid",
+    "type": "over max segment length",
+    "value": 11.972727272727274
+  },
+  {
+    "file": "20240123-070-01_0047-0054.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240305-050-07_0009-0019.mid",
+    "type": "over max segment length",
+    "value": 12.038181818181819
+  },
+  {
+    "file": "20240213-100-06_0081-0086.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240121-070-02_0479-0486.mid",
+    "type": "under min note length",
+    "value": 0.007792199999999916
+  },
+  {
+    "file": "20240305-050-04_0124-0134.mid",
+    "type": "over max segment length",
+    "value": 11.961818181818183
+  },
+  {
+    "file": "20240429-068-01_0162-0169.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240402-064-01_0134-0142.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240117-064-06_0322-0329.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-07_0643-0652.mid",
+    "type": "over max segment length",
+    "value": 11.863636363636365
+  },
+  {
+    "file": "20240227-076-05_0486-0492.mid",
+    "type": "under min note length",
+    "value": 0.007177027272727177
+  },
+  {
+    "file": "20240227-076-03_0404-0410.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240511-068-01_0049-0056.mid",
+    "type": "under min note length",
+    "value": 0.008021381818181794
+  },
+  {
+    "file": "20240305-050-07_0047-0057.mid",
+    "type": "over max segment length",
+    "value": 12.09818181818182
+  },
+  {
+    "file": "20240305-050-07_0047-0057.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-07_0566-0575.mid",
+    "type": "over max segment length",
+    "value": 14.552727272727275
+  },
+  {
+    "file": "20240213-100-01_0244-0249.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20231220-080-02_0377-0383.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240305-050-07_0595-0604.mid",
+    "type": "over max segment length",
+    "value": 19.963636363636365
+  },
+  {
+    "file": "20240305-050-03_0383-0393.mid",
+    "type": "over max segment length",
+    "value": 12.327272727272728
+  },
+  {
+    "file": "20240124-064-03_0000-0007.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240213-100-02_0911-0916.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240511-088-03_0016-0021.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240124-064-01_0029-0037.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-07_0537-0547.mid",
+    "type": "over max segment length",
+    "value": 14.100000000000001
+  },
+  {
+    "file": "20240305-050-03_0047-0057.mid",
+    "type": "over max segment length",
+    "value": 11.814545454545456
+  },
+  {
+    "file": "20240305-050-08_0038-0047.mid",
+    "type": "over max segment length",
+    "value": 11.836363636363638
+  },
+  {
+    "file": "20240402-065-04_0088-0095.mid",
+    "type": "under min velocity",
+    "value": 5
+  },
+  {
+    "file": "20240213-100-01_0201-0206.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240429-068-01_0028-0035.mid",
+    "type": "under min velocity",
+    "value": 4
+  },
+  {
+    "file": "20240502-064-02_0022-0029.mid",
+    "type": "under min velocity",
+    "value": 3
+  },
+  {
+    "file": "20240305-050-07_0383-0393.mid",
+    "type": "over max segment length",
+    "value": 21.414545454545458
+  },
+  {
+    "file": "20240305-050-07_0383-0393.mid",
+    "type": "over max note length",
+    "value": 18.414545454545458
+  },
+  {
+    "file": "20240305-050-5a_0047-0057.mid",
+    "type": "over max segment length",
+    "value": 13.23818181818182
+  },
+  {
+    "file": "20240511-088-03_0119-0125.mid",
+    "type": "under min velocity",
+    "value": 3
+  }
+]

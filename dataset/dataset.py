@@ -1,10 +1,50 @@
 import os
-from pathlib import Path
-from mido import MidiFile, MetaMessage, second2tick
-import mido
+from mido import MidiFile, MetaMessage, bpm2tempo, second2tick
+from itertools import product
 import pretty_midi
 import numpy as np
 
+from utils.midi import set_tempo, semitone_transpose, transform
+
+from typing import List
+
+
+def augment_midi(
+    p, filename: str, new_segments: List[str], output_path: str
+) -> List[str]:
+    augmented_files = []
+
+    task_a = p.add_task(f"augmenting {filename}", total=len(new_segments) * 96)
+
+    with p:
+        for segment_filename in new_segments:
+            transformations = [
+                {"transpose": t, "shift": s} for t, s in product(range(12), range(8))
+            ]
+            for transformation in transformations:
+                augmented_files.append(
+                    transform(
+                        segment_filename,
+                        output_path,
+                        int(filename.split("-")[1]),
+                        transformation,
+                    )
+                )
+                p.update(task_a, advance=1)
+
+        p.remove_task(task_a)
+    return augmented_files
+
+
+def segment_midi(
+    midi_file_path: str,
+    output_dir: str,
+    num_beats: int = 8,
+) -> List[str]:
+    filename = os.path.basename(midi_file_path)[:-4]
+    target_tempo = int(filename.split("-")[1])
+    set_tempo(midi_file_path, target_tempo)
+    midi_pm = pretty_midi.PrettyMIDI(midi_file_path)
 from utils.midi import set_tempo, semitone_transpose
 
 from utils import console
@@ -34,17 +74,23 @@ def segment_midi(input_file_path: str, params):
     # calculate timings
     midi_pm = pretty_midi.PrettyMIDI(input_file_path)
     total_length = midi_pm.get_end_time()
-    segment_length = 60 * params.n__num_beats / target_tempo  # in seconds
+    segment_length = num_beats * 60 / target_tempo  # in seconds
     num_segments = int(np.round(total_length / segment_length))
+    eighth_beat = segment_length / num_beats / 8  # eighth of a beat
 
-    filename = Path(input_file_path).stem
-    # print(f"breaking '{filename}' ({total_length:.03f} s at {target_tempo} bpm) into {num_segments:03d} segments of {segment_length:.03f} s")
+    # print(
+    #     f"\tbreaking '{filename}' ({total_length:.03f} s at {target_tempo} bpm) into {num_segments:03d} segments of {segment_length:.03f}s\n\t(pre window is {eighth_beat:.03f} s)"
+    # )
 
-    new_files = 0
+    new_files = []
     for n in list(range(num_segments)):
         start = n * segment_length
-        end = start + segment_length
-        # print(f"\tsplitting from {start:07.03f} s to {end:07.03f} s")
+        end = start + segment_length - eighth_beat
+        if n > 0:
+            start -= eighth_beat
+
+        # print(f"\t{n:03d} splitting from {start:08.03f} s to {end:07.03f} s")
+
         segment_midi = pretty_midi.PrettyMIDI(initial_tempo=target_tempo)
         instrument = pretty_midi.Instrument(
             program=midi_pm.instruments[0].program,
@@ -58,80 +104,51 @@ def segment_midi(input_file_path: str, params):
                     velocity=note.velocity,
                     pitch=note.pitch,
                     start=note.start - start,
-                    end=min(note.end, end) - start,
+                    end=note.end - start,
                 )
                 instrument.notes.append(new_note)
 
+        # pad front of track to full bar for easier playback
+        if n > 0:
+            for note in instrument.notes:
+                note.start += eighth_beat * 7
+                note.end += eighth_beat * 7
+
         # write out
-        segment_midi.instruments.append(instrument)
         segment_filename = os.path.join(
-            params.output_dir, f"{filename}_{int(start):04d}-{int(end):04d}_n00.mid"
+            output_dir, f"{filename}_{int(start):04d}-{int(end):04d}.mid"
         )
+
+        segment_midi.instruments.append(instrument)
         segment_midi.write(segment_filename)
+        set_tempo(segment_filename, target_tempo)
+        modify_end_of_track(segment_filename, segment_length, target_tempo)
 
-        # semitone shift
-        if params.do_shift > 1:
-            tpose_files = semitone_transpose(
-                segment_filename, params.output_dir, params.do_shift
-            )
-            new_files += len(tpose_files)
-        else:
-            new_files += 1
-
-        for filepath in tpose_files:
-            # set tempo properly
-            if params.strip_tempo:
-                midi_md = MidiFile(filepath)
-                for track in midi_md.tracks:
-                    for message in track:
-                        if message.type == "set_tempo":
-                            track.remove(message)
-                            track.append(
-                                MetaMessage(
-                                    "set_tempo",
-                                    tempo=mido.bpm2tempo(target_tempo),
-                                    time=0,
-                                )
-                            )
-                os.remove(filepath)
-                midi_md.save(filepath)
-            else:
-                set_tempo(filepath, target_tempo)
-
-            # make sure track end is correct
-            modify_end_of_track(filepath, segment_length, target_tempo)
-            test_mid = MidiFile(filepath)
-            # if np.round(test_mid.length, 3) != np.round(segment_length, 3):
-            #     print(
-            #         f"'{os.path.basename(filepath)}' is {test_mid.length:.3f} s at {target_tempo} BPM but should be {segment_length:.3f} s ({test_mid.ticks_per_beat} tpb)"
-            #     )
-            # test_mid.print_tracks()
+        new_files.append(segment_filename)
 
     return new_files
 
 
 def modify_end_of_track(midi_file_path, new_end_time, tempo):
-    mid = MidiFile(midi_file_path)
-    total_time_t = -1
-    new_e_time_t = second2tick(new_end_time, 220, mido.bpm2tempo(tempo))
-    # print(f"{midi_file_path} at {mido.bpm2tempo(tempo)}")
-    # mid.print_tracks()
+    midi = MidiFile(midi_file_path)
+    new_end_time_t = second2tick(new_end_time, 220, bpm2tempo(tempo))
 
-    for track in mid.tracks:
+    for i, track in enumerate(midi.tracks):
+        total_time_t = 0
         # Remove existing 'end_of_track' messages and calculate last note time
         for msg in track:
-            total_time_t += msg.time
+            if msg.type == "note_on":
+                total_time_t += msg.time
             if msg.type == "end_of_track":
                 track.remove(msg)
                 # Add a new 'end_of_track' message at the calculated offset time
                 offset = (
-                    new_e_time_t - total_time_t if new_e_time_t > total_time_t else 0
+                    new_end_time_t - total_time_t
+                    if new_end_time_t > total_time_t
+                    else 0
                 )
-                # print(
-                #     f"modifying track to have end time {new_e_time_t}: {total_time_t} -> {offset}"
-                # )
                 track.append(MetaMessage("end_of_track", time=offset))
 
     # Save the modified MIDI file
     os.remove(midi_file_path)
-    mid.save(midi_file_path)
+    midi.save(midi_file_path)

@@ -1,0 +1,23 @@
+seed: 108
+playback:
+  augment_recording: True
+  start_mode: "random"
+  playback_mode: "sequential"
+filesystem:
+  dataset_name:
+  dataset_path:
+  output_path: "data/outputs/runs"
+  table_path: "data/tables"
+midi:
+  in_port: 'Disklavier'
+  out_port: 'Disklavier'
+listener:
+  record: 67 # left pedal
+  reset: 66 # middle pedal
+player:
+  P: "[blue1]player[/blue1]:"
+  tick: "data/m_tick.wav"
+player1:
+  P: "[deep_sky_blue3]playr1[/deep_sky_blue3]:"
+player2:
+  P: "[dodger_blue3]playr2[/dodger_blue3]:"

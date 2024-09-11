@@ -1,45 +1,21 @@
 in_port: 'Disklavier'
-out_port: 'Disklavier'
-augment_recording: False
-listener:
-  record: 67
-  reset: 66
-playerR:
-  p: "[blue1]playrR[/blue1]:"
-  tick: "data/m_tick.wav"
-  do_tick: False
-player1:
-  p: "[deep_sky_blue3]playr1[/deep_sky_blue3]:"
-  tick: "data/m_tick.wav"
-  do_tick: False
-player2:
-  p: "[dodger_blue3]playr2[/dodger_blue3]:"
-  tick: "data/m_hat.wav"
-  do_tick: False
-metronome:
-  beats_per_seg: 8
-  tick_file: "data/m_kick.wav"
-  do_tick: True
+n_beats_per_segment: 8
+n_transitions: 100
+ts_min_queue_length: 12
+initialization: "kickstart"
+"kickstart_path": "20240213-100-06_0283-0287.mid"
+scheduler:
+  tag: "[green]schedl[/green]:"
+  lead_bar: True
 seeker:
-  seed: 1
-  w1: 0.5 
-  w2: 0.5
-  bin_length: 1.0
-  ph_weight_dur: False
-  ph_weight_vel: False
-  property: "contour-complex"
-  calc_trans: False
-  calc_shift: False
-  probabilities:
-    - 0.15 # similar segment from another track
-    - 0.15 # prev segment in same track
-    - 0.15 # next segment in same track
-    - 0.15 # 2nd next segment in same track
-    - 0.15 # 2nd prev segment in same track
-    - 0.05 # similar segment from another track
-    - 0.05
-    - 0.05
-    - 0.05
-    - 0.05
-  beats_per_seg: 8
-  max_sim: True
+  tag: "[yellow]seeker[/yellow]:"
+  seed: 999
+  mode: "sequential" # best easy repeat random sequential
+  metric: "pitch_histogram"
+player:
+  tag: "[blue]player[/blue]:"
+  midi_port: 'Disklavier'
+metronome:
+  tag: "[magenta]metro[/magenta] :"
+  tick_1: "data/m_hat.wav"
+  tick_2: "data/m_tick.wav"
