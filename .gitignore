@@ -11,6 +11,9 @@ inputs/*
 ml/outputs/checkpoints
 ml/outputs/runs
 *.tar.gz
+*.parquet
+*.json
+*.zip
 
 .DS_STORE
 
