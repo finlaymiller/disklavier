@@ -95,7 +95,7 @@ if __name__ == "__main__":
     r = redis.Redis(host="localhost", port=6379, db=0)
 
     # load filenames
-    properties_path = "data/outputs/careful.json"
+    properties_path = "old/outputs/careful.json"
     properties = {}
     with open(properties_path, "r") as f:
         properties = json.load(f)

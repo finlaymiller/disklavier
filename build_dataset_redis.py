@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-import json
+import pandas as pd
 import numpy as np
 from rich.progress import (
     Progress,
@@ -23,7 +23,7 @@ num_transpositions = 12
 
 
 def update_best_matches(
-    redis_client: redis.Redis, key, track_name_row, file_bm, sim_bm, metric
+    redis_client: redis.Redis, key, track_name_row, file_bm, sim_bm
 ):
     """
     Update the pitch histogram in the Redis database based on the given criteria.
@@ -31,7 +31,7 @@ def update_best_matches(
 
     Args:
         redis_client: Redis client object.
-        key (str): The key to access the pitch histogram in Redis.
+        key (str): The key to access the metric in Redis.
         track_name_row (str): The string to be compared with the substring before the underscore.
         file_bm (str): The filename to be inserted.
         sim_bm (float): The similarity value associated with the filename.
@@ -66,13 +66,12 @@ def update_best_matches(
     # sort by similarity in descending order
     best_matches.sort(key=lambda x: float(x.split("@")[1]), reverse=True)
 
-    redis_client.json().set(key, f"$.{metric}", best_matches[:3])
+    redis_client.json().set(key, f"$.{METRIC}", best_matches[:3])
 
 
 def calc_sims(
     rows,
     all_rows,
-    metric,
     mod_table,
     index,
 ):
@@ -102,7 +101,7 @@ def calc_sims(
                         "mutations": {"shift": 0, "transpose": 0},
                         "row_file": row_file,
                         "col_file": col_file,
-                        "metric": metric,
+                        "metric": METRIC,
                     }
                 else:
                     sim_best_mutation = -1
@@ -110,12 +109,12 @@ def calc_sims(
                     best_trans = -1
 
                     main_metric = list(
-                        map(float, r.get(f"{metric}:{row_file}:0-0").decode().split(","))  # type: ignore
+                        map(float, r.get(f"{METRIC}:{row_file}:0-0").decode().split(","))  # type: ignore
                     )
                     for t in mod_table:
                         s = 0  # TODO: REMOVE BEFORE SHIFTING
                         comp_metric = list(
-                            map(float, r.get(f"{metric}:{col_file}:{s}-{t}").decode().split(","))  # type: ignore
+                            map(float, r.get(f"{METRIC}:{col_file}:{s}-{t}").decode().split(","))  # type: ignore
                         )
                         similarity = np.dot(main_metric, comp_metric) / (
                             np.linalg.norm(main_metric) * np.linalg.norm(comp_metric)
@@ -131,11 +130,11 @@ def calc_sims(
                         "mutations": {"shift": best_shift, "trans": best_trans},
                         "row_file": row_file,
                         "col_file": col_file,
-                        "metric": metric,
+                        "metric": METRIC,
                     }
 
                 # update comparison object
-                r.json().set(f"cmp:{row_file}:{col_file}:{metric}", "$", value)
+                r.json().set(f"cmp:{row_file}:{col_file}:{METRIC}", "$", value)
 
                 # update row file object
                 update_best_matches(
@@ -144,7 +143,7 @@ def calc_sims(
                     track_name_row,
                     col_file,
                     value["sim"],
-                    metric,
+                    METRIC,
                 )
                 progress.advance(sim_task)
 
@@ -249,7 +248,7 @@ def main():
     # calculate similarities
     with ProcessPoolExecutor() as executor:
         futures = {
-            executor.submit(calc_sims, chunk, names, metric, mod_table, i): chunk
+            executor.submit(calc_sims, chunk, names, mod_table, i): chunk
             for i, chunk in enumerate(split_keys)
         }
 
