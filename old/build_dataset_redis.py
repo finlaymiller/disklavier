@@ -14,22 +14,19 @@ import pretty_midi
 import redis
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
-# from utils.metrics import blur_pr, energy, contour
-# from utils.midi import transform
-# from utils import get_tempo
+from utils.metrics import blur_pr, energy, contour
 
-dataset_path = "data/datasets/test"
-metric = "pitch_histogram"
-
-num_beats = 8
-num_transpositions = 12
+P_DATASET = "data/datasets/test/train"
+METRIC = "pitch_histogram"
+N_BEATS = 8
+N_TRANSPOSITIONS = 12
 
 
 def update_best_matches(
-    redis_client: redis.Redis, key, track_name_row, file_bm, sim_bm, metric
-):
+    redis_client: redis.Redis, key: str, track_name_row: str, file_bm: str, sim_bm: float, metric: str
+) -> None:
     """
-    Update the pitch histogram in the Redis database based on the given criteria.
+    Update the metric in the Redis database based on the given criteria.
 
     Args:
         redis_client: Redis client object.
@@ -43,6 +40,7 @@ def update_best_matches(
     # get the current list from Redis
     best_matches = redis_client.json().get(key, f"$.{metric}")
     if best_matches is None or len(best_matches) < 1:
+        best_matches = []
         track_names = set()
     else:
         best_matches = best_matches[0]
@@ -89,28 +87,29 @@ def calc_sims(
             print(
                 f"[SUBR{index:02d}] {i:04d}/{len(rows):04d} calculating sims for file {row_file}"
             )
-            track_name_row, _ = row_file.split("_")
+            track_name_row, segment_name_row, _ = row_file.split("_")
             for col_file in all_rows:
                 if col_file == row_file:
                     value = {
                         "sim": 1.0,
-                        "mutations": {"shift": 0, "transpose": 0},
+                        "mutations": {"transpose": 0, "shift": 0},
                         "row_file": row_file,
                         "col_file": col_file,
                         "metric": metric,
                     }
                 else:
+                    track_name_col, segment_name_col, _ = col_file.split("_")
                     sim_best_mutation = -1
                     best_shift = -1
                     best_trans = -1
-
                     main_metric = list(
-                        map(float, r.get(f"{metric}:{row_file}:0-0").decode().split(","))  # type: ignore
+                        map(float, r.get(f"{metric}:{track_name_row}_{segment_name_row}:t00s00").decode().split(","))  # type: ignore
                     )
-                    for t in mod_table:
+                    for t in range(N_TRANSPOSITIONS):
+                        # for t, s in mod_table:
                         s = 0  # TODO: REMOVE BEFORE SHIFTING
                         comp_metric = list(
-                            map(float, r.get(f"{metric}:{col_file}:{s}-{t}").decode().split(","))  # type: ignore
+                            map(float, r.get(f"{metric}:{track_name_col}_{segment_name_col}:t{t:02d}s{s:02d}").decode().split(","))  # type: ignore
                         )
                         similarity = np.dot(main_metric, comp_metric) / (
                             np.linalg.norm(main_metric) * np.linalg.norm(comp_metric)
@@ -118,12 +117,12 @@ def calc_sims(
 
                         if similarity > sim_best_mutation:
                             sim_best_mutation = similarity
-                            best_shift = s
                             best_trans = t
+                            best_shift = s
 
                     value = {
                         "sim": sim_best_mutation,
-                        "mutations": {"shift": best_shift, "trans": best_trans},
+                        "mutations": {"transpose": best_trans, "shift": best_shift},
                         "row_file": row_file,
                         "col_file": col_file,
                         "metric": metric,
@@ -149,12 +148,12 @@ def calc_sims(
 
 
 def main():
-    names = os.listdir(dataset_path)
+    names = [name[:-4] for name in os.listdir(P_DATASET) if name.endswith(".mid")]
     names.sort()
 
     num_processes = os.cpu_count()
     split_keys = np.array_split(names, num_processes)  # type: ignore
-    mod_table = list(product(range(num_transpositions), range(num_beats)))
+    mod_table = list(product(range(N_TRANSPOSITIONS), range(N_BEATS)))
 
     r = redis.Redis(host="localhost", port=6379, db=0)
 
@@ -166,30 +165,40 @@ def main():
         MofNCompleteColumn(),
         refresh_per_second=1,
     )
-    pitch_histogram_task = progress.add_task(f"uploading '{metric}'", total=len(names))
+    metric_upload_task = progress.add_task(f"uploading '{METRIC}'", total=len(names))
     with progress:
         for file in names:
-            r.json().set(f"file:{file}", "$", {f"{metric}": []}, nx=True)
-            # for t, s in mod_table:
-            #     transformed_path = transform(os.path.join(dataset_path, file), "outputs/tmp", get_tempo(file), {"transpose": t, "shift": s})
-            file_path = os.path.join(dataset_path, file)
-            transpose = file.split('_')[-1][:-4][:3]
-            shift = file.split('_')[-1][:-4][3:]
-            pch = pretty_midi.PrettyMIDI(file_path).get_pitch_class_histogram(
-                use_duration=True
-            )
-
+            r.json().set(f"file:{file}", "$", {f"{METRIC}": []}, nx=True)
+            file_path = os.path.join(P_DATASET, file)
+            track, seg, transforms = file.split('_')
+            match METRIC:
+                case "pitch_histogram":
+                    file_metric = pretty_midi.PrettyMIDI(f"{file_path}.mid").get_pitch_class_histogram(use_duration=True, use_velocity=True)
+                case "onset_histogram":
+                    file_metric = pretty_midi.PrettyMIDI(f"{file_path}.mid").get_onsets()
+                case "chroma":
+                    file_metric = pretty_midi.PrettyMIDI(f"{file_path}.mid").get_chroma()
+                case "blur_pr":
+                    file_metric = blur_pr(pretty_midi.PrettyMIDI(f"{file_path}.mid"))
+                case "energy":
+                    file_metric = energy(pretty_midi.PrettyMIDI(f"{file_path}.mid"))
+                case "contour":
+                    file_metric = contour(pretty_midi.PrettyMIDI(f"{file_path}.mid"), N_BEATS, get_tempo(file))
+                case "clamp":
+                    raise ValueError(f"Unimplemented metric: {METRIC}")
+                case _:
+                    raise ValueError(f"Invalid metric: {METRIC}")
             r.set(
-                f"{metric}:{file[:-11]}:{transpose}-{shift}",
-                ",".join(map(str, pch)),
+                f"{METRIC}:{track}_{seg}:{transforms}",
+                ",".join(map(str, file_metric)),
                 nx=True,
             )
-            progress.advance(pitch_histogram_task)
+            progress.advance(metric_upload_task)
 
     # calculate similarities
     with ProcessPoolExecutor() as executor:
         futures = {
-            executor.submit(calc_sims, chunk, names, metric, mod_table, i): chunk
+            executor.submit(calc_sims, chunk, names, METRIC, mod_table, i): chunk
             for i, chunk in enumerate(split_keys)
         }
 
@@ -197,6 +206,9 @@ def main():
             index = future.result()
             print(f"[MAIN]   subprocess {index} returned")
 
+
+def get_tempo(filename: str) -> int:
+    return int(filename.split('-')[1])
 
 if __name__ == "__main__":
     main()
