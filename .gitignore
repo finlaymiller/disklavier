@@ -4,6 +4,7 @@ data/playlist/*
 notebooks/tmp
 runs
 *.tar.gz
+data/
 
 .DS_STORE
 
