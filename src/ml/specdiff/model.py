@@ -11,7 +11,7 @@ from utils import console, basename
 from utils.midi import change_tempo_and_trim
 
 
-config = {
+default_config = {
     "device": "cuda:0",
     "encoder_config": {
         "d_ff": 2048,
@@ -33,15 +33,21 @@ class SpectrogramDiffusion:
     tag = "[#aaaaff]spcdif[/#aaaaff]:"
     name = "SpectrogramDiffusion"
 
-    def __init__(self, config: dict, fix_time: bool = True, verbose: bool = False) -> None:
+    def __init__(
+        self, config: dict | None = None, fix_time: bool = True, verbose: bool = False
+    ) -> None:
+        if config is None:
+            config = default_config
         console.log(f"{self.tag} initializing spectrogram diffusion model")
         self.device = config["device"]
         self.fix_time = fix_time
         self.verbose = verbose
         torch.set_grad_enabled(False)
         self.processor = MidiProcessor()
-        self.encoder = SpectrogramNotesEncoder(**config["encoder_config"]).cuda(
-            device=self.device
+        self.encoder = (
+            SpectrogramNotesEncoder(**config["encoder_config"]).cuda(device=self.device)
+            if "cuda" in self.device
+            else SpectrogramNotesEncoder(**config["encoder_config"]).to(self.device)
         )
         self.encoder.eval()
         sd = torch.load(config["encoder_weights_path"], weights_only=True)
@@ -73,8 +79,12 @@ class SpectrogramDiffusion:
 
         embeddings = []
         for i in range(0, len(all_tokens)):
-            batch = all_tokens[i].view(1, -1).cuda(self.device)
-            with torch.autocast("cuda"):
+            batch = (
+                all_tokens[i].view(1, -1).cuda(self.device)
+                if "cuda" in self.device
+                else all_tokens[i].view(1, -1)
+            )
+            with torch.autocast("cuda" if "cuda" in self.device else "cpu"):
                 tokens_mask = batch > 0
                 tokens_embedded, tokens_mask = self.encoder(
                     encoder_input_tokens=batch, encoder_inputs_mask=tokens_mask
