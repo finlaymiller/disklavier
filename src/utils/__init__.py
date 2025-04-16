@@ -15,8 +15,9 @@ def tick(
     bpm: int,
     stop_event: Event,
     p: str = "[cyan]metro[/cyan] : ",
-    pf_tick: str = "data/m_tick.wav",
+    do_tick: bool = True,
     do_print: bool = True,
+    pf_tick: str = "data/m_tick.wav",
 ):
     pygame.mixer.init()
     tick_sound = pygame.mixer.Sound(pf_tick)
@@ -30,7 +31,8 @@ def tick(
                 console.log(
                     f"{p} [grey50]tick! [bright_black]({beat - last_beat:.02f}s)"
                 )
-            tick_sound.play()
+            if do_tick:
+                tick_sound.play()
             last_beat = beat
 
         time.sleep(0.01)

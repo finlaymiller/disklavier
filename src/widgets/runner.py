@@ -87,23 +87,27 @@ class RunWorker(QtCore.QThread):
                         f"{self.tag} got {len(self.pf_augmentations)} augmentations:\n\t{self.pf_augmentations}"
                     )
             case "audio":
+                from utils.bp import audio_to_midi
                 self.pf_player_query = self.pf_player_query.replace(".mid", ".wav")
                 ts_recording_len = self.staff.audio_recorder.record_query(
                     self.pf_player_query
                 )
-                embedding = self.staff.seeker.get_embedding(
-                    self.pf_player_query, model="clap"
-                )
-                console.log(
-                    f"{self.tag} got embedding {embedding.shape} from pantherino"
-                )
-                best_match, best_similarity = self.staff.seeker.get_match(
-                    embedding, metric="clap-sgm"
-                )
-                console.log(
-                    f"{self.tag} got best match '{best_match}' with similarity {best_similarity}"
-                )
-                self.pf_seed = best_match
+
+                self.pf_seed = audio_to_midi(self.pf_player_query, self.params.bpm)
+
+                # embedding = self.staff.seeker.get_embedding(
+                #     self.pf_player_query, model="clap"
+                # )
+                # console.log(
+                #     f"{self.tag} got embedding {embedding.shape} from pantherino"
+                # )
+                # best_match, best_similarity = self.staff.seeker.get_match(
+                #     embedding, metric="clap-sgm"
+                # )
+                # console.log(
+                #     f"{self.tag} got best match '{best_match}' with similarity {best_similarity}"
+                # )
+                # self.pf_seed = best_match
             case "kickstart":  # use specified file as seed
                 try:
                     if self.params.kickstart_path:

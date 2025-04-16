@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Optional
 
 from .worker import Worker
-from utils import console
+from utils import console, tick
 
 
 class AudioRecorder(Worker):
@@ -58,6 +58,20 @@ class AudioRecorder(Worker):
                 console.log(f"{self.tag} status: {status}")
             recorded_data.append(indata.copy())
 
+        # start metronome tick
+        self.stop_tick_event = Event()
+        self.metro_thread = Thread(
+            target=tick,
+            args=(
+                self.bpm,
+                self.stop_tick_event,
+                self.params.tag,
+                False,
+            ),
+            name="recorder metronome",
+        )
+        self.metro_thread.start()
+
         # start the stream
         with sd.InputStream(
             samplerate=self.params.sample_rate,
@@ -66,6 +80,10 @@ class AudioRecorder(Worker):
         ):
             console.log(f"{self.tag} recording to '{pf_output}'")
             stop_event.wait()
+
+        
+        self.stop_tick_event.set()
+        self.metro_thread.join()
 
         if len(recorded_data) > 0:
             recorded_array = np.concatenate(recorded_data)
