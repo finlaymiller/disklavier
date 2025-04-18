@@ -301,127 +301,223 @@ class RunWorker(QtCore.QThread):
         seed_rearrange: Optional[bool] = None,
         seed_remove: Optional[float] = None,
     ) -> list[str]:
-        # generate augmentations
+        """
+        generate augmentations (rearrangements, note removals) for a seed midi file.
+
+        Parameters
+        ----------
+        pf_midi : str
+            path to the seed midi file.
+        seed_rearrange : Optional[bool], optional
+            whether to generate beat rearrangements, defaults to param value.
+        seed_remove : Optional[float], optional
+            percentage/amount of notes to remove, defaults to param value.
+
+        Returns
+        -------
+        list[str]
+            list of paths to augmented midi files, ordered by quality (best first),
+            followed by the best matching file from the dataset.
+        """
         console.log(f"{self.tag} augmenting '{basename(pf_midi)}'")
         import pretty_midi
 
         # load from parameters if not provided
-        if not seed_rearrange:
-            seed_rearrange = self.params.seed_rearrange
-        if not seed_remove:
-            seed_remove = self.params.seed_remove
+        rearrange = seed_rearrange if seed_rearrange is not None else self.params.seed_rearrange
+        remove_amount = seed_remove if seed_remove is not None else self.params.seed_remove
+        pf_augmentations_dir = os.path.join(self.p_log, "augmentations")
+        if not os.path.exists(pf_augmentations_dir):
+            os.makedirs(pf_augmentations_dir)
 
-        pf_augmentations = os.path.join(self.p_log, "augmentations")
-        if not os.path.exists(pf_augmentations):
-            os.makedirs(pf_augmentations)
-
-        midi_paths = []
-        if seed_rearrange:
+        # --- Step 1: Generate Base Set (Original + Rearrangements) ---
+        base_midi_paths = []
+        if rearrange:
             split_beats = midi.beat_split(pf_midi, self.params.bpm)
-            console.log(
-                f"{self.tag}\t\tsplit '{basename(pf_midi)}' into {len(split_beats)} beats"
-            )
-            ids = list(range(len(split_beats)))
-            rearrangements: list[list[int]] = [
-                ids,  # original
-                # ids[: len(ids) // 2],  # first half
-                # ids[: len(ids) // 2] * 2,  # first half twice
-                # ids[len(ids) // 2 + 1 :],  # second half
-                # ids[len(ids) // 2 + 1 :] * 2,  # second half twice
-                ids[0:4],  # first four
-                ids[0:4] * 2,  # first four twice
-                ids[-4:],  # last four
-                ids[-4:] * 2,  # last four twice
-                [ids[-2], ids[-1]] * 4,  # last two beats
-                [ids[-1]] * 8,  # last beat
-            ]
-            for i, arrangement in enumerate(rearrangements):
-                console.log(f"{self.tag}\t\trearranging seed:\t{arrangement}")
-                joined_midi: pretty_midi.PrettyMIDI = midi.beat_join(
-                    split_beats, arrangement, self.params.bpm
-                )
+            if not split_beats:
+                console.log(f"[yellow]warning: could not split '{basename(pf_midi)}' into beats. skipping rearrangement.[/yellow]")
+                base_midi_paths.append(pf_midi)
+            else:
+                console.log(f"{self.tag}\t\tsplit '{basename(pf_midi)}' into {len(split_beats)} beats")
+                ids = list(split_beats.keys()) # use actual beat keys
+                # define rearrangements (consider making this configurable)
+                rearrangements: list[list[int]] = [
+                    ids, # original order
+                    ids[0:4], # first four
+                    ids[0:4] * 2, # first four twice
+                    ids[-4:], # last four
+                    ids[-4:] * 2, # last four twice
+                    [ids[-2], ids[-1]] * 4, # last two beats repeated
+                    [ids[-1]] * 8, # last beat repeated
+                ]
+                # ensure original segment is always first, even if empty rearrangement list is defined
+                if not rearrangements or rearrangements[0] != ids:
+                    rearrangements.insert(0, ids)
 
-                console.log(
-                    f"{self.tag}\t\tjoined midi:\t{joined_midi.get_end_time()} s"
-                )
-
-                pf_joined_midi = os.path.join(
-                    pf_augmentations, f"{basename(pf_midi)}_a{i:02d}.mid"
-                )
-                joined_midi.write(pf_joined_midi)
-                midi_paths.append(pf_joined_midi)
-        else:
-            midi_paths.append(pf_midi)
-
-        if seed_remove:
-            joined_paths = midi_paths
-            midi_paths = []  # TODO: stop overloading this
-            num_options = 0
-            for mid in joined_paths:
-                stripped_paths = midi.remove_notes(mid, pf_augmentations, seed_remove)
-                console.log(
-                    f"{self.tag}\t\tstripped {seed_remove * 100 if isinstance(seed_remove, float) else seed_remove}{'%' if isinstance(seed_remove, float) else ''} notes from '{basename(mid)}' (+{len(stripped_paths)} versions)"
-                )
-                midi_paths.append(stripped_paths)
-                num_options += len(stripped_paths)
-            console.log(
-                f"{self.tag}\t\taugmented '{basename(pf_midi)}' into {num_options} files"
-            )
-
-            best_aug = ""
-            best_path = []
-            best_match = ""
-            best_similarity = 0.0
-            for ps in midi_paths:
-                console.log(f"{self.tag}\tps: {ps}")
-                for m in ps:
-                    embedding = self.staff.seeker.get_embedding(m)
-                    if embedding.sum() == 0:
-                        console.log(
-                            f"{self.tag}\t\t{basename(m)} has no notes, skipping"
-                        )
+                for i, arrangement in enumerate(rearrangements):
+                    # Filter out invalid beat indices
+                    valid_arrangement = [b for b in arrangement if b in split_beats]
+                    if not valid_arrangement:
+                        console.log(f"[yellow]warning: rearrangement {i} resulted in empty sequence after filtering invalid beats. skipping.[/yellow]")
                         continue
-                    match, similarity = self.staff.seeker.get_match(embedding)
-                    if similarity > best_similarity:
-                        best_aug = m
-                        best_match = match
-                        best_similarity = similarity
-                        best_path = ps  # [(p, similarity) if p == m else p for p in ps]
-                    console.log(
-                        f"{self.tag}\t\tbest match for '{basename(m)}' is '{basename(match)}' with similarity {similarity}"
-                    )
-        else:
-            best_aug = ""
-            best_match = ""
-            best_similarity = 0.0
-            for ps in midi_paths:
-                for m in ps:
-                    console.log(f"{self.tag}\t\t{basename(m)}")
 
-            # find best match for each augmentation
-            for mid in midi_paths:
-                embedding = self.staff.seeker.get_embedding(mid, model="clap")
-                match, similarity = self.staff.seeker.get_match(embedding)
-                if similarity > best_similarity:
-                    best_aug = mid
-                    best_match = match
-                    best_similarity = similarity
-                console.log(
-                    f"{self.tag}\t\tbest match for '{basename(mid)}' is '{basename(match)}' with similarity {similarity}"
-                )
+                    # console.log(f"{self.tag}\t\trearranging seed: {valid_arrangement}")
+                    joined_midi: pretty_midi.PrettyMIDI = midi.beat_join(
+                        split_beats, valid_arrangement, self.params.bpm
+                    )
+                    if not joined_midi or not any(inst.notes for inst in joined_midi.instruments):
+                        console.log(f"[yellow]warning: rearrangement {i} resulted in empty midi. skipping.[/yellow]")
+                        continue
+
+                    # console.log(f"{self.tag}\t\tjoined midi: {joined_midi.get_end_time()} s")
+                    pf_joined_midi = os.path.join(
+                        pf_augmentations_dir, f"{basename(pf_midi)}_r{i:02d}.mid"
+                    )
+                    joined_midi.write(pf_joined_midi)
+                    base_midi_paths.append(pf_joined_midi)
+        else:
+            base_midi_paths.append(pf_midi) # Start with the original if no rearrangement
+
+        # --- Step 2: Apply Note Removal (if enabled) ---
+        all_augmented_paths = []
+        if remove_amount and remove_amount > 0:
+            console.log(f"{self.tag}\tapplying note removal (amount={remove_amount}")
+            for base_path in base_midi_paths:
+                # Add the base path itself (0 notes removed)
+                all_augmented_paths.append(base_path)
+                # Generate versions with notes removed
+                try:
+                    
+                    removed_note_paths = midi.remove_notes(
+                        base_path,
+                        pf_augmentations_dir,
+                        remove_amount,
+                        num_versions=1
+                    )
+                    if removed_note_paths:
+                        console.log(
+                             f"{self.tag}\t\tremoved {remove_amount * 100 if isinstance(remove_amount, float) and remove_amount < 1 else remove_amount}
+                             {'%' if isinstance(remove_amount, float) and remove_amount < 1 else ''} notes from '{basename(base_path)}' -> +{len(removed_note_paths)} versions"
+                         )
+                        all_augmented_paths.extend(removed_note_paths)
+                    else:
+                         console.log(f"[yellow]warning: note removal on '{basename(base_path)}' produced no valid files.[/yellow]")
+                except Exception as e:
+                    console.log(f"[red]error removing notes from {basename(base_path)}: {e}[/red]")
+            console.log(f"{self.tag}\tgenerated {len(all_augmented_paths)} total versions including removals.")
+        else:
+            all_augmented_paths = base_midi_paths # Use only base paths if no removal
+
+        # --- Step 3: Find Best Augmentation Based on Similarity --- 
+        best_aug_path = ""
+        best_match_path = ""
+        best_similarity = -1.0 # Initialize to allow any valid similarity
+
+        # Deduplicate paths before embedding calculation
+        unique_augmented_paths = sorted(list(set(all_augmented_paths)))
+        console.log(f"{self.tag}\tevaluating {len(unique_augmented_paths)} unique augmentations...")
+
+        augmentation_scores = [] # Store (similarity, aug_path, match_path)
+
+        for aug_path in unique_augmented_paths:
+            if not os.path.exists(aug_path):
+                # console.log(f"[yellow]warning: skipping non-existent augmentation path '{aug_path}'[/yellow]")
+                continue
+            try:
+                embedding = self.staff.seeker.get_embedding(aug_path) # Using default model
+                # Check for empty embeddings (e.g., file had no notes after processing)
+                if embedding is None or embedding.sum() == 0:
+                    # console.log(f"{self.tag}\t\t'{basename(aug_path)}' has no notes or failed embedding, skipping.")
+                    continue
+
+                match_path_stem, similarity = self.staff.seeker.get_match(embedding)
+                # Ensure get_match returns a valid path stem or handles errors
+                if match_path_stem is None:
+                    console.log(f"[yellow]warning: could not find match for '{basename(aug_path)}'[/yellow]")
+                    continue
+
+                match_abs_path = os.path.join(self.args.dataset_path, match_path_stem + ".mid")
+                augmentation_scores.append((similarity, aug_path, match_abs_path))
+
+                # console.log(f"{self.tag}\t\t'{basename(aug_path)}' -> '{basename(match_abs_path)}' (sim: {similarity:.4f})")
+
+            except FileNotFoundError:
+                 console.log(f"[yellow]warning: file not found during embedding/matching for '{aug_path}'. skipping.[/yellow]")
+            except Exception as e:
+                console.log(f"[red]error processing augmentation '{basename(aug_path)}': {e}[/red]")
+                # Decide if we should continue or stop
+                continue
+
+        if not augmentation_scores:
+            console.log("[red]error: no valid augmentations could be evaluated.[/red]")
+            return [pf_midi]
+
+        # Sort by similarity descending
+        augmentation_scores.sort(key=lambda x: x[0], reverse=True)
+
+        best_similarity, best_aug_path, best_match_path = augmentation_scores[0]
 
         console.log(
-            f"{self.tag}\tbest augmentation is '{basename(best_aug)}' with similarity {best_similarity} matches to {best_match}"
+            f"{self.tag}\tbest augmentation is '{basename(best_aug_path)}' (sim: {best_similarity:.4f} to '{basename(best_match_path)}')"
         )
 
-        if seed_remove:
-            # add em all up
-            midi_paths = [
-                *best_path[: best_path.index(best_aug) + 1],
-                os.path.join(self.args.dataset_path, best_match + ".mid"),
-            ]
+        # --- Step 4: Construct Final Playlist --- 
+        # Return the sequence starting from the best augmentation, possibly including its
+        # intermediate steps if removal was applied, and finally the best match.
 
-        return midi_paths
+        final_playlist = []
+        # Try to find the generation lineage of the best augmentation
+        best_aug_basename = os.path.basename(best_aug_path).split('.')[0]
+        parts = best_aug_basename.split('_')
+
+        # Check if it came from a removal step (e.g., _v1-R05)
+        if len(parts) > 1 and parts[-1].startswith(('v','R','L','S')):
+            base_name_parts = parts[:-1]
+            version_info = parts[-1]
+            # Try to find the original base file (rearranged or original seed)
+            potential_base_name = "_".join(base_name_parts) + ".mid"
+            potential_base_path = os.path.join(pf_augmentations_dir, potential_base_name)
+
+            # Find all related removal files for this base and version
+            related_files = []
+            if os.path.exists(potential_base_path):
+                # Add the base rearrangement/original first
+                final_playlist.append(potential_base_path)
+                # Find files matching the pattern
+                version_prefix = version_info.split('-')[0] # e.g., v1
+                method_char = version_info[len(version_prefix)+1] # R, L, S
+                pattern = f"{"_".join(base_name_parts)}_{version_prefix}-{method_char}*.mid"
+                console.log(f"searching for pattern: {pattern}")
+                import glob
+                matches = glob.glob(os.path.join(pf_augmentations_dir, pattern))
+                # Extract step number and sort
+                sorted_matches = sorted(
+                    matches,
+                    key=lambda p: int(os.path.basename(p).split('-')[-1].split('.')[0][1:]) # Extract number after R/L/S
+                 )
+                final_playlist.extend(sorted_matches)
+                # Ensure the best one is the last one from the sequence
+                if final_playlist[-1] != best_aug_path:
+                     console.log(f"[yellow]warning: best augmentation path {basename(best_aug_path)} not found at end of inferred sequence. using best path directly.[/yellow]")
+                     final_playlist = [best_aug_path] # Fallback
+
+            else: # Base not found, just use the best directly
+                 final_playlist = [best_aug_path]
+        else: # Best was likely an original or rearranged file without removal
+            final_playlist = [best_aug_path]
+
+        # Add the best matching file from the dataset
+        if best_match_path and os.path.exists(best_match_path):
+            final_playlist.append(best_match_path)
+        else:
+            console.log(f"[yellow]warning: best match path '{best_match_path}' is invalid or missing. skipping.[/yellow]")
+
+        # Deduplicate final list while preserving order (in case base == best_aug_path)
+        seen = set()
+        final_playlist_unique = [p for p in final_playlist if not (p in seen or seen.add(p))]
+
+        console.log(f"{self.tag} final augmentation sequence: {[basename(p) for p in final_playlist_unique]}")
+
+        return final_playlist_unique
 
     def _emit_current_file(self):
         current_status = self.staff.scheduler.get_current_file()
