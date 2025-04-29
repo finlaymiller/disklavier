@@ -11,7 +11,7 @@ from scipy.spatial.distance import cosine
 
 from .worker import Worker
 from utils import basename, console, panther
-from utils.modes import find_path
+from utils.graph import find_path
 
 from params.constants import SUPPORTED_EXTENSIONS, EMBEDDING_SIZES
 

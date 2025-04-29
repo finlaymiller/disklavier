@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import workers
 from workers import Staff
 from utils import basename, console, midi, write_log
+from utils.conversion import request_basic_pitch_conversion
 
 from typing import Optional
 
@@ -87,27 +88,34 @@ class RunWorker(QtCore.QThread):
                         f"{self.tag} got {len(self.pf_augmentations)} augmentations:\n\t{self.pf_augmentations}"
                     )
             case "audio":
-                from utils.bp import audio_to_midi
                 self.pf_player_query = self.pf_player_query.replace(".mid", ".wav")
                 ts_recording_len = self.staff.audio_recorder.record_query(
                     self.pf_player_query
                 )
 
-                self.pf_seed = audio_to_midi(self.pf_player_query, self.params.bpm)
-
-                # embedding = self.staff.seeker.get_embedding(
-                #     self.pf_player_query, model="clap"
-                # )
-                # console.log(
-                #     f"{self.tag} got embedding {embedding.shape} from pantherino"
-                # )
-                # best_match, best_similarity = self.staff.seeker.get_match(
-                #     embedding, metric="clap-sgm"
-                # )
-                # console.log(
-                #     f"{self.tag} got best match '{best_match}' with similarity {best_similarity}"
-                # )
-                # self.pf_seed = best_match
+                try:
+                    # the conversion function handles placing the audio and waiting for midi
+                    pf_midi_from_bp = request_basic_pitch_conversion(
+                        self.pf_player_query, self.params
+                    )
+                    if pf_midi_from_bp:
+                        self.pf_seed = pf_midi_from_bp
+                        # potentially copy/move pf_midi_from_bp to a more permanent seed location if needed
+                        console.log(
+                            f"{self.tag} successfully converted audio to midi: {self.pf_seed}"
+                        )
+                    else:
+                        console.log(
+                            "[bold red]error: basic pitch conversion timed out or failed.[/bold red]"
+                        )
+                        # handle error state - maybe skip this step or use a default seed
+                        self.pf_seed = None  # or some fallback
+                except Exception as e:
+                    console.log(
+                        f"[bold red]error during basic pitch conversion: {e}[/bold red]"
+                    )
+                    # handle error state
+                    self.pf_seed = None  # or some fallback
             case "kickstart":  # use specified file as seed
                 try:
                     if self.params.kickstart_path:
@@ -138,7 +146,14 @@ class RunWorker(QtCore.QThread):
         console.log(f"{self.tag} successfully initialized recording")
 
         # add seed to queue
-        self._queue_file(self.pf_seed, None)
+        if self.pf_seed:
+            self._queue_file(self.pf_seed, None)
+        else:
+            console.log(
+                f"{self.tag} [bold red]warning: no seed midi available, cannot queue initial file.[/bold red]"
+            )
+            # Decide how to handle this - skip initial queue? use a default? raise error?
+            # For now, just logging and continuing, which might break later logic.
 
         # add first match to queue
         if self.pf_augmentations is None:

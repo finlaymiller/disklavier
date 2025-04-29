@@ -46,3 +46,7 @@ audio:
   channels: 1
   midi_port: "Disklavier"
   record: 67 # left pedal
+
+basic_pitch:
+  audio_in_dir: "data/basic_pitch/audio_in"
+  midi_out_dir: "data/basic_pitch/midi_out"

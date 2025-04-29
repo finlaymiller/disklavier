@@ -75,7 +75,9 @@ def process_audio_to_midi(wav_path):
     print("playback finished.")
 
     # basic pitch model setup
+    print("loading basic pitch model...")
     model = Model(ICASSP_2022_MODEL_PATH)
+    print("model loaded.")
 
     # run basic pitch prediction with processed audio data
     # note: predict expects a tuple (audio_array, sample_rate) for direct audio input
@@ -90,7 +92,8 @@ def process_audio_to_midi(wav_path):
 
     # save midi data to a temporary file
     temp_midi = tempfile.NamedTemporaryFile(delete=False, suffix=".mid")
-    midi_data.write(temp_midi.name)
+    # midi_data.write(temp_midi.name)
+    midi_data.write("/Users/finlay/Documents/Programming/disklavier/recorded_audio.mid")
     return temp_midi.name, temp_processed_wav.name
 
 
@@ -104,27 +107,28 @@ def play_midi(midi_path):
 
 def main():
     # record audio from the microphone
-    samplerate = 44100  # define samplerate here or pass it if needed elsewhere
-    wav_path, audio_data, _ = record_audio(duration=5, samplerate=samplerate)
+    # samplerate = 44100  # define samplerate here or pass it if needed elsewhere
+    # wav_path, audio_data, _ = record_audio(duration=5, samplerate=samplerate)
 
-    # play back the recorded audio
-    print("playing recorded audio...")
-    sd.play(audio_data, samplerate)
-    sd.wait()
-    print("playback finished.")
+    # # play back the recorded audio
+    # print("playing recorded audio...")
+    # sd.play(audio_data, samplerate)
+    # sd.wait()
+    # print("playback finished.")
+    wav_path = "recorded audio.wav"
 
     # process the recorded audio to MIDI
     midi_path, processed_wav_path = process_audio_to_midi(wav_path)
 
     # play the MIDI file using the specified SoundFont
-    play_midi(midi_path)
+    # play_midi(midi_path)
 
     # clean up temporary files
-    print("cleaning up temporary files...")
-    os.unlink(wav_path)
-    os.unlink(processed_wav_path)  # clean up processed wav
-    os.unlink(midi_path)
-    print("cleanup complete.")
+    # print("cleaning up temporary files...")
+    # os.unlink(wav_path)
+    # os.unlink(processed_wav_path)  # clean up processed wav
+    # os.unlink(midi_path)
+    # print("cleanup complete.")
 
 
 if __name__ == "__main__":
