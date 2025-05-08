@@ -1,5 +1,5 @@
 import os
-import csv
+import time
 import yaml
 from queue import Queue
 from threading import Event
@@ -11,8 +11,9 @@ import workers
 from workers import Staff
 from utils import console, write_log
 from widgets.runner import RunWorker
-from widgets.param_editor import ParameterEditorWidget
 from widgets.piano_roll import PianoRollWidget
+from widgets.param_editor import ParameterEditorWidget
+
 
 from typing import Optional
 
@@ -58,8 +59,27 @@ class MainWindow(QtWidgets.QMainWindow):
         # Window dimensions
         geometry = self.screen().availableGeometry()
         self.setMinimumSize(800, 600)
-        self.resize(int(geometry.width() * 0.5), int(geometry.height() * 0.5))
-        # self.setFixedSize(int(geometry.width() * 0.8), int(geometry.height() * 0.8))
+        self.resize(int(geometry.width() * 0.8), int(geometry.height() * 0.8))
+
+    def set_model(self, model):
+        """
+        set the model for the main window.
+
+        parameters
+        ----------
+        model : object
+            the model to be used by the window.
+        """
+        self.model = model
+        # If there are components that depend on the model and are initialized
+        # in __init__, you might need to re-initialize them or update them here.
+        # For example, if param_editor depends on the model:
+        # self.param_editor = ParameterEditorWidget(self.params, self)
+        # self.setCentralWidget(self.param_editor)
+        # Or, if workers depend on the model, you might need to re-initialize them
+        # if they were already created.
+        # if self.model is not None and hasattr(self, 'workers'):
+        # self.init_workers() # Or a more specific update method
 
     def _build_timer(self):
         # Create velocity label (left side)
@@ -190,6 +210,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.args.tables,
             self.args.dataset_path,
             self.p_playlist,
+            self.model,
             self.params.bpm,
         )
         player = workers.Player(
@@ -203,7 +224,11 @@ class MainWindow(QtWidgets.QMainWindow):
         audio_recorder = workers.AudioRecorder(
             self.params.audio, self.params.bpm, self.p_log
         )
-        self.workers = Staff(seeker, player, scheduler, midi_recorder, audio_recorder)
+        panther = workers.Panther(self.params.panther, self.params.bpm)
+        # seeker.set_panther(panther)
+        self.workers = Staff(
+            seeker, player, scheduler, midi_recorder, audio_recorder, panther
+        )
 
     def switch_to_piano_roll(self, q_gui: Queue):
         console.log(f"{self.tag} switching to piano roll view")

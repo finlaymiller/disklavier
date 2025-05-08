@@ -6,17 +6,44 @@ from PySide6.QtWidgets import QApplication
 
 from utils import console
 from widgets.main_window import MainWindow
+from ml.specdiff.model import SpectrogramDiffusion, DEFAULT_CONFIG
 
 
 tag = "[white]main[/white]  :"
 
+config = DEFAULT_CONFIG
+config["device"] = "cpu"
+config["encoder_weights_path"] = (
+    "/Users/finlay/Documents/Programming/disklavier/src/ml/specdiff/note_encoder.bin"
+)
+model =  SpectrogramDiffusion(
+    new_config=config,
+    fix_time=True,
+    verbose=True,
+)
 
 def main(args, params):
     app = QApplication(sys.argv)
     main_window = MainWindow(args, params)
     main_window.args = args
     main_window.show()
+
+    main_window.set_model(model)
+
     sys.exit(app.exec())
+
+
+def load_model():
+    config = DEFAULT_CONFIG
+    config["device"] = "cpu"
+    config["encoder_weights_path"] = (
+        "/Users/finlay/Documents/Programming/disklavier/src/ml/specdiff/note_encoder.bin"
+    )
+    return SpectrogramDiffusion(
+        new_config=config,
+        fix_time=True,
+        verbose=True,
+    )
 
 
 def load_args(args):
@@ -145,5 +172,7 @@ if __name__ == "__main__":
             f"{tag} [red bold]ERROR[/red bold]: table directory not found, exiting..."
         )
         raise FileNotFoundError("table directory not found")
+
+    # model = load_model()
 
     main(args, params)

@@ -10,10 +10,12 @@ from pretty_midi import PrettyMIDI
 from scipy.spatial.distance import cosine
 
 from .worker import Worker
-from utils import basename, console, panther
 from utils.modes import find_path
+from workers.panther import Panther
+from utils import basename, console, panther
+from utils.constants import SUPPORTED_EXTENSIONS, EMBEDDING_SIZES
 
-from params.constants import SUPPORTED_EXTENSIONS, EMBEDDING_SIZES
+from typing import Optional
 
 
 class Seeker(Worker):
@@ -54,6 +56,7 @@ class Seeker(Worker):
         table_path: str,
         dataset_path: str,
         playlist_path: str,
+        model,
         bpm: int,
     ):
         super().__init__(params, bpm=bpm)
@@ -61,6 +64,7 @@ class Seeker(Worker):
         self.p_table = table_path
         self.p_dataset = dataset_path
         self.p_playlist = playlist_path
+        self.model = model
         self.rng = np.random.default_rng(self.params.seed)
 
         # some defaults
@@ -138,14 +142,6 @@ class Seeker(Worker):
         console.log(f"{self.tag} connected to recorder for velocity updates")
 
     def check_velocity_updates(self) -> bool:
-        """
-        Check for velocity updates from the recorder.
-
-        Returns
-        -------
-        bool
-            True if velocity data was updated, False otherwise.
-        """
         if self._recorder is None:
             console.log(f"{self.tag} no recorder connected")
             return False
@@ -683,10 +679,29 @@ class Seeker(Worker):
             embedding = embedding.reshape(1, -1)
             console.log(f"{self.tag} {embedding}")
         else:
-            console.log(
-                f"{self.tag} getting [italic bold]{model}[/italic bold] embedding for '{pf_midi}'"
-            )
-            embedding = panther.send_embedding(pf_midi, model, self.params.system)
+            embedding = self.model.embed(pf_midi)
+            embedding = embedding.numpy()
+            # if self.panther_worker is None:
+            #     console.log(
+            #         f"{self.tag} [orange]error: panther worker not set[/orange]"
+            #     )
+            #     embedding = panther.send_embedding(pf_midi, model, "live")
+            #     console.log(
+            #         f"{self.tag} got embedding {embedding.shape} from panther"
+            #     )
+            # else:
+            #     console.log(
+            #         f"{self.tag} getting [italic bold]{model}[/italic bold] embedding for '{pf_midi}'"
+            #     )
+            #     embedding = self.panther_worker.get_embedding(
+            #         file_path=pf_midi, model=model, mode="live"
+            #     )
+            if embedding is None:
+                console.log(
+                    f"{self.tag} [red]error: failed to get embedding from panther[/red]"
+                )
+                # TODO: handle failure: return dummy or raise error
+                embedding = np.zeros((1, 512), dtype=np.float32)
             console.log(
                 f"{self.tag} got [italic bold]{self.params.metric}[/italic bold] embedding {embedding.shape}"
             )

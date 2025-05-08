@@ -1,6 +1,4 @@
-n_beats_per_segment: 8
-n_transitions: 16
-startup_delay: 10
+n_transitions: 64
 initialization: "recording" # kickstart random recording audio
 kickstart_path: "data/datasets/20250320/augmented/20240429-068-06_0084-0091_t10s03.mid"
 # kickstart_path: "data/datasets/20250320/augmented/20241229-094-10_0091-0096_t00s00.mid"

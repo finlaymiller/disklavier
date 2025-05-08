@@ -11,11 +11,7 @@ from typing import Dict, Tuple
 
 from . import basename, console
 
-# Fix import path to use proper module reference
-import sys
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from params.constants import TICKS_PER_BEAT
+from utils.constants import TICKS_PER_BEAT
 
 
 def get_bpm(file_path: str) -> int:
