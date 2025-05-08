@@ -9,7 +9,10 @@ notebooks/tmp
 inputs/*
 src/ml/outputs/checkpoints
 src/ml/outputs/runs
+src/ml/mt3/mt3
+tests/outputs
 notebooks/data
+notebooks/logs
 *.tar.gz
 *.feather
 *.parquet
@@ -20,6 +23,7 @@ notebooks/data
 *.h5
 *.pt
 
+.plans
 .cursorignore
 .DS_STORE
 

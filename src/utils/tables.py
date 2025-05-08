@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from typing import List
 from . import basename, console
 
-from ml.specdiff.model import SpectrogramDiffusion, config as specdiff_config
+from ml.specdiff.model import SpectrogramDiffusion, DEFAULT_CONFIG
 from ml.classifier.model import Classifier
 from ml.clamp.model import Clamp
 from ml.clamp.clamp_utils import M3_HIDDEN_SIZE
@@ -77,7 +77,13 @@ def build_neighbor_table(
             n_table.loc[basename(file)] = neighbors
             progress.advance(update_task)
 
-    n_table.to_hdf(output_path, key=hdf_key, mode="w")
+    try:
+        n_table.to_hdf(output_path, key=hdf_key, mode="w")
+    except Exception as e:
+        console.print_exception(show_locals=True)
+        return False
+
+    console.log(n_table.head())
 
     return os.path.exists(output_path)
 
@@ -110,7 +116,7 @@ def pitch_histograms(all_files: List[str], output_path: str) -> bool:
 
         d_filenames = f.create_dataset(
             "filenames",
-            (num_files, 1),
+            (num_files),
             dtype=h5py.string_dtype(encoding="utf-8"),
             fillvalue="",
         )
@@ -175,21 +181,21 @@ def specdiff(
     num_files = len(all_files)
     all_files.sort()
     # initialize encoder
-    specdiff_config["device"] = device_name
-    model = SpectrogramDiffusion(specdiff_config, fix_time)
+    DEFAULT_CONFIG["device"] = device_name
+    model = SpectrogramDiffusion(DEFAULT_CONFIG, fix_time)
 
     # initialize faiss index
     faiss_path = os.path.join(os.path.dirname(output_path), "specdiff.faiss")
-    index = faiss.IndexFlatIP(specdiff_config["encoder_config"]["d_model"])
+    index = faiss.IndexFlatIP(DEFAULT_CONFIG["encoder_config"]["d_model"])
     vecs = np.zeros(
-        (num_files, specdiff_config["encoder_config"]["d_model"]), dtype=np.float32
+        (num_files, DEFAULT_CONFIG["encoder_config"]["d_model"]), dtype=np.float32
     )
 
     with h5py.File(output_path, "w") as out_file:
         # create output datasets
         d_embeddings = out_file.create_dataset(
             "embeddings",
-            (num_files, specdiff_config["encoder_config"]["d_model"]),
+            (num_files, DEFAULT_CONFIG["encoder_config"]["d_model"]),
             fillvalue=0,
         )
         d_filenames = out_file.create_dataset(
@@ -217,7 +223,7 @@ def specdiff(
 
                 d_embeddings[i : i + batch_size] = embeddings
                 vecs[i : i + batch_size] = [
-                    e / np.linalg.norm(e, keepdims=True) for e in embeddings
+                    e / float(np.linalg.norm(e, keepdims=True)) for e in embeddings
                 ]
                 d_filenames[i : i + batch_size] = [
                     basename(f) for f in all_files[i : i + batch_size]
@@ -346,7 +352,7 @@ def clamp(all_files: List[str], output_path: str, device_name: str = "cuda:0") -
                 # console.log(f"embedding {i} of {num_files} has shape {embedding.shape}")
                 # console.log(embedding)
                 d_embeddings[i] = embedding
-                vecs[i] = embedding / np.linalg.norm(embedding, keepdims=True)
+                vecs[i] = embedding / float(np.linalg.norm(embedding, keepdims=True))
                 d_filenames[i] = basename(all_files[i])
                 progress.advance(emb_task)
 
@@ -426,6 +432,8 @@ def graph(
             for i in range(len(files)):
                 for j in neighbors[i]:
                     if i < j:
+                        if float(1 - similarity[i, j]) < 0:
+                            raise ValueError(f"similarity is negative: {similarity[i, j]}")
                         edges.append((files[i], files[j], float(1 - similarity[i, j])))
                 progress.advance(sec_task)
 

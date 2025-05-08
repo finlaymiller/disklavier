@@ -1,0 +1,35 @@
+###############################################################################
+### APRIL 20, 2025
+### 20250420 but with a metronome
+###############################################################################
+
+# paths
+data_dir: '/media/scratch/sageev-midi/20250420-m/unsegmented'  # path to read MIDI files from
+out_dir: '/media/scratch/sageev-midi/20250420-m'   # path to write MIDI files to
+dataset_name: 20250420-m
+
+limit: null # early stopping
+
+# segmentation
+segment: true
+num_beats: 8
+lead_window_beat_frac: 8
+metronome: 100 # metronome velocity (0 for none)
+tempo_fold_min: 50
+tempo_fold_max: 100
+beats: true
+novelty: false
+
+# augmentation
+augment: true
+tempo_fold: true
+num_transposes: 12 # 12 semitones
+
+# supporting tables, etc.
+representations: ["pitch-histogram", "specdiff",  "clamp"]
+model_dir: "data/models"
+device_name: "cuda:1"
+graphs: ["specdiff"]
+n_graph_connections: 250
+find_neighbors: true
+fix_tempo: true

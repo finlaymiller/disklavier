@@ -28,10 +28,10 @@ def record_audio(duration=5, samplerate=44100):
     sd.wait()
     print("Recording finished.")
 
-    # save to a temporary WAV file
-    temp_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-    write(temp_wav.name, samplerate, audio_data)
-    return temp_wav.name
+    # save to a local WAV file
+    wav_path = "recorded_audio.wav"  # Define the path for the local file
+    write(wav_path, samplerate, audio_data)
+    return wav_path
 
 
 def process_audio_to_midi(wav_path):
@@ -53,7 +53,7 @@ def process_audio_to_midi(wav_path):
 
 
 def play_midi(midi_path):
-    with mido.open_output("to Max 1") as output:
+    with mido.open_output("Disklavier") as output:
         # load and play the MIDI file
         mid = MidiFile(midi_path)
         for msg in mid.play():
@@ -70,8 +70,8 @@ def main():
     # play the MIDI file using the specified SoundFont
     play_midi(midi_path)
 
-    # clean up temporary files
-    os.unlink(wav_path)
+    # clean up temporary MIDI file
+    # os.unlink(wav_path) # Keep the WAV file
     os.unlink(midi_path)
 
 

@@ -11,7 +11,7 @@ class Metronome(Worker, QtCore.QThread):
     def __init__(self, params, bpm: int, t_start: datetime):
         Worker.__init__(self, params, bpm=bpm)
         QtCore.QThread.__init__(self)
-        self.do_tick = params.do_tick if hasattr(params, "do_tick") else False
+        self.do_tick = params.do_tick
         self.wav_file_1 = params.tick_1
         self.wav_file_2 = params.tick_2
         self.td_start = t_start
@@ -22,17 +22,6 @@ class Metronome(Worker, QtCore.QThread):
             console.log(f"{self.tag} settings:\n{self.__dict__}")
 
     def run(self):
-        """
-        Run the metronome in a separate thread.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-        """
         self.running = True
         pygame.mixer.init()
         next_tick = self.td_start
@@ -59,17 +48,6 @@ class Metronome(Worker, QtCore.QThread):
             console.log(f"{self.tag}[yellow] CTRL + C detected, exiting...")
 
     def stop(self):
-        """
-        Stop the metronome thread.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-        """
         self.running = False
         self.wait()  # Wait for the thread to finish
         pygame.mixer.quit()

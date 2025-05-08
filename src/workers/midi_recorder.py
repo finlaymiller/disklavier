@@ -86,6 +86,7 @@ class MidiRecorder(Worker):
         start_time = datetime.now()
         end_time = 0
         last_note_time = start_time
+        tt_recording_length = 0
 
         midi = mido.MidiFile(ticks_per_beat=TICKS_PER_BEAT)
         track = mido.MidiTrack()
@@ -121,8 +122,52 @@ class MidiRecorder(Worker):
                                 f"{self.tag} saving recording '{os.path.basename(self.pf_midi_recording)}'"
                             )
 
-                            # write out recording
+                            # --- store notes ---
+                            # check for hanging notes and end them at last beat
+                            active_notes = {}
+                            for msg in track:
+                                if msg.type == "note_on" and msg.velocity > 0:
+                                    active_notes[msg.note] = True
+                                elif msg.type == "note_off" or (
+                                    msg.type == "note_on" and msg.velocity == 0
+                                ):
+                                    if msg.note in active_notes:
+                                        del active_notes[msg.note]
+                            for note in active_notes:
+                                track.append(
+                                    mido.Message(
+                                        "note_off", note=note, velocity=0, time=0
+                                    )
+                                )
                             midi.tracks.append(track)
+
+                            # --- store beats ---
+                            beat_track = mido.MidiTrack()
+                            beat_track.name = "beats"
+                            num_beats = tt_recording_length // TICKS_PER_BEAT
+                            beat_remainder = tt_recording_length % TICKS_PER_BEAT
+                            beat_track.append(
+                                mido.MetaMessage("text", text=f"beat 1", time=0)
+                            )
+                            tt_last_beat = num_beats * TICKS_PER_BEAT
+                            for i in range(1, num_beats + 1):
+                                beat_track.append(
+                                    mido.MetaMessage(
+                                        "text", text=f"beat {i+1}", time=TICKS_PER_BEAT
+                                    )
+                                )
+
+                            if beat_remainder > TICKS_PER_BEAT / 2:
+                                beat_track.append(
+                                    mido.MetaMessage(
+                                        "text",
+                                        text=f"beat {num_beats+2}",
+                                        time=TICKS_PER_BEAT,
+                                    )
+                                )
+                                tt_last_beat += TICKS_PER_BEAT
+                            midi.tracks.append(beat_track)
+
                             midi.save(self.pf_midi_recording)
                             self.recorded_notes = []
 
@@ -135,6 +180,7 @@ class MidiRecorder(Worker):
                             console.log(f"{self.tag} no notes recorded")
 
                     # record pedal not released, but not already recording
+                    # therefore, start recording
                     elif self.is_recording == False:
                         console.log(f"{self.tag} recording at {self.bpm} BPM")
                         self.is_recording = True
@@ -165,9 +211,7 @@ class MidiRecorder(Worker):
                         ).total_seconds()
                         beats_elapsed = time_since_recording * self.bpm / 60.0
                         fraction_of_beat = beats_elapsed % 1.0
-                        ticks_since_prev_beat = int(
-                            fraction_of_beat * TICKS_PER_BEAT
-                        )
+                        ticks_since_prev_beat = int(fraction_of_beat * TICKS_PER_BEAT)
 
                         if self.verbose:
                             console.log(
@@ -183,6 +227,7 @@ class MidiRecorder(Worker):
                                 / 60
                             )
                         )
+                    tt_recording_length += msg.time
                     track.append(msg)
                     self.recorded_notes.append(msg)
                     console.log(f"{self.tag} \t{msg}")
@@ -287,26 +332,29 @@ class MidiRecorder(Worker):
 
     def save_midi(self, pf_recording: str) -> bool:
         """Saves the recorded notes to a MIDI file."""
-
         if self.verbose:
             console.log(
                 f"{self.tag} saving recording '{os.path.basename(pf_recording)}'"
             )
-
         midi = mido.MidiFile(ticks_per_beat=TICKS_PER_BEAT)
-        track = mido.MidiTrack()
-        track.name = "player"
-        track.append(
+
+        # --- store player recording ---
+        note_track = mido.MidiTrack()
+        note_track.name = "player"
+        note_track.append(
             mido.MetaMessage(
                 type="set_tempo",
                 tempo=self.tempo,
                 time=0,
             )
         )
+        tt_recording_length = 0
         for msg in self.recorded_notes:
-            track.append(msg)
-        midi.tracks.append(track)
+            note_track.append(msg)
+            tt_recording_length += msg.time  # type: ignore
+        midi.tracks.append(note_track)
 
+        # --- save ---
         midi.save(pf_recording)
 
         if os.path.exists(pf_recording):

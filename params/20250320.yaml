@@ -1,6 +1,13 @@
+###############################################################################
+### MARCH 20, 2025
+### this dataset contains a huge amount of new material, bringing us up to
+### almost 1 000 000 segments after augmentation! It also contains a few small
+### bug fixes. The ability to add a metronome to the output was added.
+###############################################################################
+
 # paths
-data_dir: '/media/scratch/sageev-midi/20250320/unsegmented'  # path to read MIDI files from
-out_dir: '/media/scratch/sageev-midi/20250320'   # path to write MIDI files to
+data_dir: "/media/scratch/sageev-midi/20250320/unsegmented" # path to read MIDI files from
+out_dir: "/media/scratch/sageev-midi/20250320" # path to write MIDI files to
 dataset_name: 20250320
 
 limit: null # early stopping
@@ -20,11 +27,18 @@ tempo_fold_min: 50
 tempo_fold_max: 100
 num_transposes: 12 # 12 semitones
 
-
 # supporting tables, etc.
-representations: ["pitch-histogram", "specdiff", "clf-4note", "clf-speed", "clf-tpose", "clamp"]
+representations:
+  [
+    "pitch-histogram",
+    "specdiff",
+    "clf-4note",
+    "clf-speed",
+    "clf-tpose",
+    "clamp",
+  ]
 model_dir: "data/models"
-device_name: "cuda:0"
+device_name: "cuda:1"
 graphs: ["specdiff"]
 n_graph_connections: 100
 find_neighbors: true

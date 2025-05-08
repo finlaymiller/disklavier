@@ -9,12 +9,16 @@ from shutil import copy2
 from pretty_midi import PrettyMIDI
 from scipy.spatial.distance import cosine
 
+from workers.panther import Panther
+from typing import Optional
+
 from .worker import Worker
 from utils.modes import find_path
 from workers.panther import Panther
 from utils import basename, console, panther
 from utils.constants import SUPPORTED_EXTENSIONS, EMBEDDING_SIZES
 
+from utils.constants import SUPPORTED_EXTENSIONS, EMBEDDING_SIZES
 from typing import Optional
 
 
@@ -49,6 +53,9 @@ class Seeker(Worker):
     _recorder = None
     _avg_velocity: float = 0.0
 
+    # reference to panther worker
+    panther_worker: Optional[Panther] = None
+
     def __init__(
         self,
         params,
@@ -66,14 +73,11 @@ class Seeker(Worker):
         self.p_playlist = playlist_path
         self.model = model
         self.rng = np.random.default_rng(self.params.seed)
-
-        # some defaults
-        if not hasattr(self, "match"):
-            self.params.match = "current"
-        if not hasattr(self.params, "seed_rearrange"):
-            self.params.seed_rearrange = False
-        if not hasattr(self.params, "seed_remove"):
-            self.params.seed_remove = 1
+        self.playlist = {}
+        self.filenames = []
+        self.played_files = []
+        self.current_path = []
+        self.filename_to_index = {}
 
         if self.verbose:
             console.log(f"{self.tag} settings:\n{self.__dict__}")
@@ -103,6 +107,15 @@ class Seeker(Worker):
             os.path.join(self.p_table, f"{self.params.metric}.faiss")
         )
         console.log(f"{self.tag} FAISS index loaded ({self.faiss_index.ntotal})")
+        # if self.faiss_index.ntotal > 0:
+        #     console.log(f"{self.tag} Checking norms of first few vectors in loaded index:")
+        #     for i in range(min(100, self.faiss_index.ntotal)):
+        #         try:
+        #             vector = self.faiss_index.reconstruct(i)
+        #             norm = np.linalg.norm(vector)
+        #             console.log(f"{self.tag}   Vector {i} norm: {norm:.4f}")
+        #         except Exception as e:
+        #             console.log(f"{self.tag} Error reconstructing/checking vector {i}: {e}")
 
         # load neighbor table
         # old version -- backwards compat
@@ -113,9 +126,7 @@ class Seeker(Worker):
         if os.path.isfile(pf_neighbor_table):
             with console.status("\t\t\t      loading neighbor file..."):
                 if os.path.splitext(pf_neighbor_table)[1] == ".h5":
-                    self.neighbor_table = pd.read_hdf(
-                        pf_neighbor_table, key="neighbors"
-                    )
+                    self.neighbor_table = pd.read_hdf(pf_neighbor_table, key="20250420")
                 else:
                     self.neighbor_table = pd.read_parquet(pf_neighbor_table)
                 self.neighbor_table.head()
@@ -178,7 +189,7 @@ class Seeker(Worker):
             case "sequential":
                 next_file = self._get_neighbor()
             case "graph":
-                # TODO: FIX THIS
+                # TODO: fix similarities if possible
                 next_file, similarity = self._get_graph()
             case "random" | "shuffle" | _:
                 next_file = self._get_random()
@@ -252,9 +263,9 @@ class Seeker(Worker):
         try:
             # Use dictionary lookup instead of list.index() with fallback
             try:
-                embedding = self.faiss_index.reconstruct(self.filename_to_index[query_file])  # type: ignore
+                embedding = self.faiss_index.reconstruct(int(self.filename_to_index[query_file]))  # type: ignore
             except KeyError:
-                embedding = self.faiss_index.reconstruct(self.filenames.index(query_file))  # type: ignore
+                embedding = self.faiss_index.reconstruct(int(self.filenames.index(query_file)))  # type: ignore
         except (ValueError, KeyError):
             pf_new = self.played_files[-1]
             # if "player" in pf_new:
@@ -266,6 +277,7 @@ class Seeker(Worker):
 
             # Add the new embedding to the index and update filenames list and dictionary
             embedding = self.get_embedding(pf_new)
+            embedding /= np.linalg.norm(embedding, axis=1, keepdims=True)
             self.faiss_index.add(embedding)  # type: ignore
             self.filenames.append(query_file)
             self.filename_to_index[query_file] = len(self.filenames) - 1
@@ -285,7 +297,7 @@ class Seeker(Worker):
         if self.verbose:
             for i in range(3):
                 console.log(
-                    f"{self.tag} {i}: {self.filenames[indices[i]]} {similarities[i]:.05f}"
+                    f"{self.tag}\t{i}: {self.filenames[indices[i]]} {similarities[i]:.05f}"
                 )
 
         # find most similar valid match
@@ -439,10 +451,10 @@ class Seeker(Worker):
         for played_file in self.played_files:
             track = played_file.split("_")[0]
             seen_tracks.add(basename(track))
+        console.log(f"{self.tag} seen tracks: {seen_tracks}")
         seen_tracks = set(
             list(seen_tracks)[-self.params.graph_track_revisit_interval :]
         )
-        console.log(f"{self.tag} seen tracks: {seen_tracks}")
 
         for idx, similarity in zip(indices, similarities):
             segment_name = str(self.filenames[idx])
@@ -452,7 +464,7 @@ class Seeker(Worker):
                 continue
 
             top_segments.append((segment_name, float(similarity)))
-            seen_tracks.add(segment_track)
+            # seen_tracks.add(segment_track)
 
             # only keep top whatever
             if len(top_segments) >= self.num_segs_diff_tracks:
@@ -531,9 +543,9 @@ class Seeker(Worker):
                     self.played_files,
                     max_nodes=self.params.graph_steps,
                     max_visits=1,
-                    max_updates=50,
                     allow_transpose=True,
                     allow_shift=not self.params.block_shift,
+                    verbose=True,
                 )
                 if res:
                     path, cost = res
@@ -673,9 +685,7 @@ class Seeker(Worker):
         if model == "pitch-histogram":
             if self.verbose:
                 console.log(f"{self.tag} using pitch histogram metric")
-            embedding = PrettyMIDI(self.params.pf_recording).get_pitch_class_histogram(
-                True, True
-            )
+            embedding = PrettyMIDI(pf_midi).get_pitch_class_histogram(True, True)
             embedding = embedding.reshape(1, -1)
             console.log(f"{self.tag} {embedding}")
         else:
@@ -723,6 +733,11 @@ class Seeker(Worker):
         else:
             similarities, indices = index.search(query_embedding, num_matches)  # type: ignore
 
+        if np.array(similarities).any() > 1.0:
+            console.log(f"{self.tag} [red]WARNING: similarity > 1.0[/red]")
+            console.print_exception(show_locals=True)
+            raise ValueError("similarity > 1.0")
+
         if self.params.block_shift:
             indices, similarities = zip(
                 *[
@@ -731,9 +746,10 @@ class Seeker(Worker):
                     if str(self.filenames[i]).endswith("s00")
                 ]
             )
-            console.log(
-                f"{self.tag} filtered {num_matches-len(indices)}/{num_matches} shifted files"
-            )
+            if self.verbose:
+                console.log(
+                    f"{self.tag} filtered {num_matches-len(indices)}/{num_matches} shifted files"
+                )
         else:
             indices, similarities = zip(
                 *[(i, d) for i, d in zip(indices[0], similarities[0])]
@@ -787,25 +803,19 @@ class Seeker(Worker):
         else:
             filenames = self.filenames
 
-        # ensure that embedding is normalized
-        console.log(f"{self.tag}\tquery embedding shape: {query_embedding.shape}")
-
         # get matches
         indices, similarities = self._faiss_search(
-            query_embedding, index=faiss_index if "clap" in metric else None
+            query_embedding,
+            num_matches=2000,
+            index=faiss_index if "clap" in metric else None,
         )
-        for i in range(3):
-            console.log(
-                f"{self.tag}\t{indices[i]:04d}: '{filenames[indices[i]]}'\t- {similarities[i]:.4f}"
-            )
+        if self.verbose:
+            for i in range(3):
+                console.log(
+                    f"{self.tag}\t\t'{filenames[indices[i]]}' ({indices[i]:04d}): {similarities[i]:.4f}"
+                )
 
-        # get best match
-        if "clap" in metric:
-            best_match = os.path.join(
-                self.p_dataset, basename(filenames[indices[0]]) + "_t00s00.mid"
-            )
-        else:
-            best_match = self.filenames[indices[0]]
+        best_match = filenames[indices[0]]
         best_similarity = similarities[0]
 
         return best_match, best_similarity

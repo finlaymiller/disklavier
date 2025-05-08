@@ -1,0 +1,38 @@
+###############################################################################
+### APRIL 20, 2025
+### this dataset uses the updated specdiff pipeline with more aggressive tempo
+### adjustment. it also fixes a bug with tracks that were synthetically
+### doubled & halved, so thoser are working correctly now. clamp3 embeddings
+### are implemented for the first time.
+###############################################################################
+
+# paths
+data_dir: '/media/scratch/sageev-midi/20250420/unsegmented'  # path to read MIDI files from
+out_dir: '/media/scratch/sageev-midi/20250420'   # path to write MIDI files to
+dataset_name: 20250420
+
+limit: null # early stopping
+
+# segmentation
+segment: true
+num_beats: 8
+lead_window_beat_frac: 8
+metronome: 0 # metronome velocity (0 for none)
+tempo_fold_min: 50
+tempo_fold_max: 100
+beats: true
+novelty: false
+
+# augmentation
+augment: true
+tempo_fold: true
+num_transposes: 12 # 12 semitones
+
+# supporting tables, etc.
+representations: ["pitch-histogram", "specdiff",  "clamp"]
+model_dir: "data/models"
+device_name: "cuda:1"
+graphs: ["specdiff"]
+n_graph_connections: 150
+find_neighbors: true
+fix_tempo: true

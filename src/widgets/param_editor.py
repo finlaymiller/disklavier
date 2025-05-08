@@ -1,6 +1,6 @@
 import os
 import omegaconf
-from PySide6 import QtWidgets, QtCore, QtGui
+from PySide6 import QtWidgets
 from utils import console
 
 blocked_params = [
@@ -15,6 +15,18 @@ blocked_params = [
     "record",
     "channels",
     "system",
+]
+
+key_order = [
+    "bpm",
+    "n_transitions",
+    "seeker",
+    "seed_rearrange",
+    "seed_remove",
+    "scheduler",
+    "player",
+    "recorder",
+    "audio",
 ]
 
 
@@ -33,10 +45,10 @@ class ParameterEditorWidget(QtWidgets.QWidget):
             "seeker.metric": [
                 "pitch-histogram",
                 "specdiff",
-                "clf-4note",
-                "clf-speed",
-                "clf-tpose",
                 "clamp",
+                # "clf-4note",
+                # "clf-speed",
+                # "clf-tpose",
             ],
             "seeker.match": [
                 "current",
@@ -98,7 +110,7 @@ class ParameterEditorWidget(QtWidgets.QWidget):
 
         # Display top-level parameters
         keys = list(self.params.keys())
-        keys.sort()
+        keys.sort(key=lambda x: key_order.index(x) if x in key_order else len(key_order))
         for key in keys:
             if (
                 isinstance(self.params[key], (int, float, str, bool))

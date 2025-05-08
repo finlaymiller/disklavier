@@ -7,7 +7,14 @@ from argparse import ArgumentParser
 from utils import console
 import utils.tables as table_utils
 
-SUPPORTED_REPS = ["pitch-histogram", "specdiff", "clf-4note", "clf-speed", "clf-tpose"]
+SUPPORTED_REPS = [
+    "pitch-histogram",
+    "specdiff",
+    "clf-4note",
+    "clf-speed",
+    "clf-tpose",
+    "clamp",
+]
 
 
 def main(config) -> None:
@@ -30,7 +37,7 @@ def main(config) -> None:
                 f"building neighbor table for {len(segmented_files)} segmented files"
             )
             built_n = table_utils.build_neighbor_table(
-                segmented_files, neighbors_path, config.dataset_name
+                segmented_files, neighbors_path, str(config.dataset_name)
             )
             if built_n:
                 console.log(
@@ -106,7 +113,7 @@ def main(config) -> None:
                 continue
 
             resp = table_utils.graph(
-                os.path.join(config.out_dir, "specdiff.h5"),
+                os.path.join(config.out_dir, f"{rep}.h5"),
                 os.path.join(config.out_dir, "augmented"),
                 graph_dir,
                 config.n_graph_connections,

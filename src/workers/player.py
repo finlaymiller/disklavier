@@ -12,6 +12,7 @@ class Player(Worker):
     """
     Plays MIDI from queue. scales velocities based on velocity stats from player.
     """
+
     td_last_note: datetime
     first_note = False
     n_notes = 0
@@ -73,7 +74,7 @@ class Player(Worker):
             return True
 
     def adjust_playback_based_on_velocity(self):
-        if self._avg_velocity > 0: # and self.verbose:
+        if self._avg_velocity > 0:  # and self.verbose:
             if self._last_factor != self._velocity_adjustment_factor:
                 console.log(
                     f"{self.tag} adjusting playback based on velocity: avg={self._avg_velocity:.2f}, min={self._min_velocity}, max={self._max_velocity}"
@@ -86,8 +87,9 @@ class Player(Worker):
             )
 
             if self._last_factor != self._velocity_adjustment_factor:
-                console.log(f"{self.tag} adjustment factor: {self._velocity_adjustment_factor:.2f}")
-
+                console.log(
+                    f"{self.tag} adjustment factor: {self._velocity_adjustment_factor:.2f}"
+                )
 
     def _calculate_velocity_adjustment_factor(self):
         """
@@ -198,3 +200,7 @@ class Player(Worker):
             f"{self.tag} [yellow bold]{self.n_late_notes}[/yellow bold]/{self.n_notes} notes were late (sent > 0.001 s after scheduled)"
         )
         console.log(f"{self.tag}[green] playback finished")
+
+    def set_start_time(self, td_start: datetime):
+        self.td_start = td_start
+        console.log(f"{self.tag} start time set to {self.td_start}")

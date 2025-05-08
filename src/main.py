@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 
 import workers
 from utils import console, midi, write_log
-from utils.panther import send_embedding
+from workers.panther import send_embedding
 
 tag = "[white]main[/white]  :"
 

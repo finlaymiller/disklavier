@@ -1,3 +1,9 @@
+###############################################################################
+### APRIL 10, 2025
+### this dataset fixed a bug with the start point of tracks which caused every
+### segment to be off by one beat.
+###############################################################################
+
 # paths
 data_dir: '/media/scratch/sageev-midi/20250410/unsegmented'  # path to read MIDI files from
 out_dir: '/media/scratch/sageev-midi/20250410'   # path to write MIDI files to

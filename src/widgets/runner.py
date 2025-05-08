@@ -1,6 +1,7 @@
 import os
+import math
+import mido
 import time
-from pretty_midi import PrettyMIDI
 from PySide6 import QtCore
 from threading import Thread
 from rich.table import Table
@@ -10,6 +11,7 @@ from datetime import datetime, timedelta
 import workers
 from workers import Staff
 from utils import basename, console, midi, write_log
+from utils.midi import TICKS_PER_BEAT
 
 from typing import Optional
 
@@ -22,15 +24,19 @@ class RunWorker(QtCore.QThread):
     tag = "[#008700]runner[/#008700]:"
 
     # session tracking
-    n_files = 0
-    ts_queue = 0
+    tt_queue_end_tick = 0
+    n_files_queued = 0
     pf_augmentations = None
+    playing_file = None
+    ts_system_start = datetime.now()
+    td_playback_start = datetime.now()
 
     # signals
     s_status = QtCore.Signal(str)
     s_start_time = QtCore.Signal(datetime)
     s_switch_to_pr = QtCore.Signal(object)
     s_transition_times = QtCore.Signal(list)
+    s_segments_remaining = QtCore.Signal(int)
 
     # queues
     q_playback = PriorityQueue()
@@ -44,10 +50,10 @@ class RunWorker(QtCore.QThread):
         self.staff: Staff = main_window.workers
         self.td_system_start = main_window.td_system_start
 
-        # Connect signals
+        # connect signals
         self.s_switch_to_pr.connect(self.main_window.switch_to_piano_roll)
 
-        # File paths from main window
+        # file paths from main window
         self.p_log = main_window.p_log
         self.p_playlist = main_window.p_playlist
         self.pf_master_recording = main_window.pf_master_recording
@@ -83,26 +89,8 @@ class RunWorker(QtCore.QThread):
                 if self.params.seed_rearrange or self.params.seed_remove:
                     self.pf_augmentations = self.augment_midi(self.pf_seed)
                     console.log(
-                        f"{self.tag} got {len(self.pf_augmentations)} augmentations:\n\t{self.pf_augmentations}"
+                        f"{self.tag} playing {len(self.pf_augmentations)} augmentations:\n\t{self.pf_augmentations}"
                     )
-            case "audio":
-                self.pf_player_query = self.pf_player_query.replace(".mid", ".wav")
-                ts_recording_len = self.staff.audio_recorder.record_query(
-                    self.pf_player_query
-                )
-                embedding = self.staff.seeker.get_embedding(
-                    self.pf_player_query, model="clap"
-                )
-                console.log(
-                    f"{self.tag} got embedding {embedding.shape} from pantherino"
-                )
-                best_match, best_similarity = self.staff.seeker.get_match(
-                    embedding, metric="clap-sgm"
-                )
-                console.log(
-                    f"{self.tag} got best match '{best_match}' with similarity {best_similarity}"
-                )
-                self.pf_seed = best_match
             case "kickstart":  # use specified file as seed
                 try:
                     if self.params.kickstart_path:
@@ -126,77 +114,96 @@ class RunWorker(QtCore.QThread):
             # TODO: implement playlist mode using generated csv's
             raise NotImplementedError("playlist mode not implemented")
 
-        self.staff.scheduler.init_schedule(
-            self.pf_schedule,
-            ts_recording_len if self.params.initialization == "recording" else 0,
-        )
-        console.log(f"{self.tag} successfully initialized recording")
-
-        # add seed to queue
-        self._queue_file(self.pf_seed, None)
-
-        # add first match to queue
-        if self.pf_augmentations is None:
-            pf_next_file, similarity = self.staff.seeker.get_next()
-            self._queue_file(pf_next_file, similarity)
-
         try:
-            td_start = datetime.now() + timedelta(seconds=self.params.startup_delay)
-            console.log(
-                f"{self.tag} start time set to {td_start.strftime('%y-%m-%d %H:%M:%S')}"
+            # Get current time and add startup delay
+            current_time = datetime.now()
+            # Round up to the next even second
+            current_seconds = current_time.second + current_time.microsecond / 1000000
+            seconds_to_next_even = math.ceil(current_seconds / 2) * 2 - current_seconds
+
+            # Add the startup delay and the time to next even second
+            self.td_playback_start = current_time + timedelta(
+                seconds=self.params.startup_delay + seconds_to_next_even
             )
-            self.s_start_time.emit(td_start)
-            self.staff.scheduler.td_start = td_start
-            self.metronome.td_start = td_start
-            self.metronome.start()  # Start the QThread directly
+            console.log(
+                f"{self.tag} start time set to {self.td_playback_start.strftime('%y-%m-%d %H:%M:%S')}"
+            )
+            self.s_start_time.emit(self.td_playback_start)
+            self.staff.scheduler.set_start_time(self.td_playback_start)
+            self.staff.scheduler.init_schedule(
+                self.pf_schedule,
+                0,  # ts_recording_len if self.params.initialization == "recording" else 0,
+            )
+            console.log(f"{self.tag} successfully initialized recording")
+
+            # add seed to queue
+            self._queue_file(self.pf_seed, None)
+
+            # start metronome
+            self.metronome.td_start = self.td_playback_start + timedelta(
+                seconds=self.staff.scheduler.ts_transitions[0]
+            )
+            self.metronome.start()
 
             # start audio recording in a separate thread
             # TODO: fix ~1-beat delay in audio recording startup
-            self.e_audio_stop = self.staff.audio_recorder.start_recording(td_start)
+            self.e_audio_stop = self.staff.audio_recorder.start_recording(
+                self.td_playback_start
+            )
 
-            # Switch to piano roll view using signal
+            # switch to piano roll view
             self.s_switch_to_pr.emit(self.q_gui)
             # start player
-            self.staff.player.td_start = td_start
-            self.staff.player.td_last_note = td_start
+            self.staff.player.set_start_time(self.td_playback_start)
+            self.staff.player.td_last_note = self.td_playback_start
             self.thread_player = Thread(
                 target=self.staff.player.play, name="player", args=(self.q_playback,)
             )
             self.thread_player.start()
 
             # start midi recording
-            self.midi_stop_event = self.staff.midi_recorder.start_recording(td_start)
+            self.midi_stop_event = self.staff.midi_recorder.start_recording(
+                self.td_playback_start
+            )
             self.main_window.midi_stop_event = self.midi_stop_event
             # connect recorder to player for velocity updates
             self.staff.player.set_recorder(self.staff.midi_recorder)
 
             if self.pf_augmentations is not None:
+                # get average velocity of next match
+                next_avg_velocity = midi.get_average_velocity(self.pf_augmentations[-1])
+                console.log(
+                    f"{self.tag} first match average velocity: {next_avg_velocity}"
+                )
+                # scale velocity of next match
+                midi.ramp_vel(
+                    self.pf_augmentations[:-1], next_avg_velocity, self.args.bpm
+                )
                 for aug in self.pf_augmentations:
                     self._queue_file(aug, None)
 
             # play for set number of transitions
             # TODO: move this to be managed by scheduler and track scheduler state instead
-            current_file = ""
-            last_time = time.time()
-            while self.n_files < self.params.n_transitions:
-                current_time = time.time()
-                elapsed = current_time - last_time
-                last_time = current_time
+            tempo = mido.bpm2tempo(self.params.bpm)
+            while self.n_files_queued < self.params.n_transitions:
+                self._emit_current_file()
 
-                if current_file != self.staff.scheduler.get_current_file():
-                    current_file = self.staff.scheduler.get_current_file()
-                    console.log(f"{self.tag} now playing '{current_file}'")
-                    self.s_status.emit(f"now playing '{current_file}'")
+                # check amount of time remaining in queue
+                remaining_seconds = 0
+                if not self.q_playback.empty():
+                    tt_next_note = self.q_playback.queue[0][0]
+                    remaining_ticks = max(0, self.tt_queue_end_tick - tt_next_note)
+                    remaining_seconds = mido.tick2second(
+                        remaining_ticks, TICKS_PER_BEAT, tempo
+                    )
+                else:
+                    pass
 
-                if self.ts_queue < self.params.startup_delay * 2:
+                if remaining_seconds < self.params.startup_delay * 2:
                     pf_next_file, similarity = self.staff.seeker.get_next()
                     self._queue_file(pf_next_file, similarity)
-                    console.log(
-                        f"{self.tag} queue time is now {self.ts_queue:.01f} seconds"
-                    )
 
-                time.sleep(0.001)
-                self.ts_queue -= elapsed
+                time.sleep(0.1)
                 if not self.thread_player.is_alive():
                     console.log(f"{self.tag} player ran out of notes, exiting")
                     self.thread_player.join(0.1)
@@ -205,14 +212,12 @@ class RunWorker(QtCore.QThread):
             # all necessary files queued, wait for playback to finish
             console.log(f"{self.tag} waiting for playback to finish...")
             while self.q_playback.qsize() > 0:
-                if current_file != self.staff.scheduler.get_current_file():
-                    current_file = self.staff.scheduler.get_current_file()
-                    console.log(f"{self.tag} now playing '{current_file}'")
-                    self.s_status.emit(f"now playing '{current_file}'")
+                self._emit_current_file()
                 time.sleep(0.1)
             self.thread_player.join(timeout=0.1)
             console.log(f"{self.tag} playback complete")
             self.s_status.emit("playback complete")
+            self.s_segments_remaining.emit(0)
         except KeyboardInterrupt:
             console.log(f"{self.tag}[yellow] CTRL + C detected, saving and exiting...")
 
@@ -282,21 +287,35 @@ class RunWorker(QtCore.QThread):
         console.log(f"{self.tag}[green bold] shutdown complete, exiting")
 
     def _queue_file(self, file_path: str, similarity: float | None) -> None:
-        ts_seg_len, ts_seg_start = self.staff.scheduler.enqueue_midi(
+        _, ts_seg_start, tt_end_tick = self.staff.scheduler.enqueue_midi(
             file_path, self.q_playback, self.q_gui, similarity
         )
 
-        self.ts_queue += ts_seg_len
+        self.tt_queue_end_tick = max(self.tt_queue_end_tick, tt_end_tick)
         self.staff.seeker.played_files.append(file_path)
-        self.n_files += 1
+        self.n_files_queued += 1
         self.s_transition_times.emit(self.staff.scheduler.ts_transitions)
+        start_time = self.td_playback_start + timedelta(seconds=ts_seg_start)
 
         write_log(
             self.pf_playlist,
-            self.n_files,
-            datetime.fromtimestamp(ts_seg_start).strftime("%y-%m-%d %H:%M:%S"),
+            self.n_files_queued,
+            start_time.strftime("%y-%m-%d %H:%M:%S"),
             file_path,
             similarity if similarity is not None else "----",
+        )
+
+        remaining_seconds_log = 0
+        if not self.q_playback.empty():
+            tt_next_note_log = self.q_playback.queue[0][0]
+            tempo_log = mido.bpm2tempo(self.params.bpm)
+            remaining_ticks_log = max(0, self.tt_queue_end_tick - tt_next_note_log)
+            remaining_seconds_log = mido.tick2second(
+                remaining_ticks_log, TICKS_PER_BEAT, tempo_log
+            )
+
+        console.log(
+            f"{self.tag} queue time is now {remaining_seconds_log:.01f} seconds (end tick: {self.tt_queue_end_tick})"
         )
 
     def augment_midi(
@@ -305,6 +324,25 @@ class RunWorker(QtCore.QThread):
         seed_rearrange: Optional[bool] = None,
         seed_remove: Optional[float] = None,
     ) -> list[str]:
+        """
+        augment a midi file with predefined beat-based rearrangements and/or note removals.
+
+        NOTE: the best match is also returned as the last element of the list.
+
+        Parameters
+        ----------
+        pf_midi : str
+            path to the midi file to augment
+        seed_rearrange : Optional[bool]
+            whether to rearrange the file based on beats
+        seed_remove : Optional[float]
+            percentage of notes to remove
+
+        Returns
+        -------
+        list[str]
+            list of paths to the augmented files
+        """
         # generate augmentations
         console.log(f"{self.tag} augmenting '{basename(pf_midi)}'")
         import pretty_midi
@@ -323,23 +361,47 @@ class RunWorker(QtCore.QThread):
         if seed_rearrange:
             split_beats = midi.beat_split(pf_midi, self.params.bpm)
             console.log(
-                f"{self.tag}\tsplit '{basename(pf_midi)}' into {len(split_beats)} beats"
+                f"{self.tag}\t\tsplit '{basename(pf_midi)}' into {len(split_beats)} beats"
             )
             ids = list(range(len(split_beats)))
             rearrangements: list[list[int]] = [
                 ids,  # original
-                ids[: len(ids) // 2] * 2,  # first half twice
-                ids[len(ids) // 2 :] * 2,  # second half twice need +1?
+                ids[0:4],  # first four
+                ids[0:4] * 2,  # first four twice
+                ids[-4:],  # last four
+                ids[-4:] * 2,  # last four twice
                 [ids[-2], ids[-1]] * 4,  # last two beats
                 [ids[-1]] * 8,  # last beat
+                # WARNING: if the length doesn't end up being <= 8 beats the segment will overlap with the next one
+                # ids[: len(ids) // 2],  # first half
+                # ids[: len(ids) // 2] * 2,  # first half twice
+                # ids[len(ids) // 2 + 1 :],  # second half
+                # ids[len(ids) // 2 + 1 :] * 2,  # second half twice
             ]
             for i, arrangement in enumerate(rearrangements):
-                console.log(f"{self.tag}\trearranging seed:\t{arrangement}")
+                console.log(f"{self.tag}\t\trearranging seed:\t{arrangement}")
                 joined_midi: pretty_midi.PrettyMIDI = midi.beat_join(
                     split_beats, arrangement, self.params.bpm
                 )
 
-                console.log(f"{self.tag}\tjoined midi:\t{joined_midi.get_end_time()}")
+                # not quite empty, but why bother
+                if joined_midi.get_end_time() < 1.0:
+                    console.log(
+                        f"\t\tjoined midi is empty (or near it), skipping ({basename(pf_midi)}_a{i:02d}.mid)"
+                    )
+                    continue
+                else:
+                    console.log(
+                        f"{self.tag}\t\tjoined midi:\t{joined_midi.get_end_time()} s"
+                    )
+
+                # add lead-in bar for rearranged files
+                beat_len_sec = 60 / self.params.bpm
+                if i > 0:
+                    for instrument in joined_midi.instruments:
+                        for note in instrument.notes:
+                            note.start += beat_len_sec
+                            note.end += beat_len_sec
 
                 pf_joined_midi = os.path.join(
                     pf_augmentations, f"{basename(pf_midi)}_a{i:02d}.mid"
@@ -347,71 +409,106 @@ class RunWorker(QtCore.QThread):
                 joined_midi.write(pf_joined_midi)
                 midi_paths.append(pf_joined_midi)
         else:
-            midi_paths.append(pf_midi)
+            midi_paths.append(pf_midi)  # no rearrangement, use the original path
 
         if seed_remove:
-            joined_paths = midi_paths
-            midi_paths = []  # TODO: stop overloading this
+            # start with the paths generated (or the original if no rearrangement)
+            current_paths = midi_paths
+            midi_paths = []  # this will hold the final list of paths after removal
             num_options = 0
-            for mid in joined_paths:
-                stripped_paths = midi.remove_notes(mid, pf_augmentations, seed_remove)
-                console.log(
-                    f"{self.tag}\tstripped notes from '{basename(mid)}' (+{len(stripped_paths)})"
+            # keep track of paths generated by removal for each input
+            paths_after_removal = []
+
+            for mid_path in current_paths:
+                stripped_paths = midi.remove_notes(
+                    mid_path, pf_augmentations, seed_remove, 3, save_all_steps=True
                 )
-                midi_paths.append(stripped_paths)
+                console.log(
+                    f"\t\tstripped {seed_remove * 100 if isinstance(seed_remove, float) else seed_remove}{'%' if isinstance(seed_remove, float) else ''} notes from '{basename(mid_path)}' (+{len(stripped_paths)} versions)"
+                )
+                paths_after_removal.extend(stripped_paths)
                 num_options += len(stripped_paths)
+
+            midi_paths.extend(paths_after_removal)
             console.log(
-                f"{self.tag}\taugmented '{basename(pf_midi)}' into {num_options} files"
+                f"{self.tag}\t\taugmented '{basename(pf_midi)}' into {num_options} files"
             )
 
             best_aug = ""
-            best_path = []
             best_match = ""
             best_similarity = 0.0
-            for ps in midi_paths:
-                console.log(f"{self.tag}\tps: {ps}")
-                for m in ps:
-                    embedding = self.staff.seeker.get_embedding(m)
-                    match, similarity = self.staff.seeker.get_match(embedding)
+            # Iterate through the flat list of paths after removal
+            for m in midi_paths:
+                embedding = self.staff.seeker.get_embedding(m)
+                if embedding is None or embedding.sum() == 0:
                     console.log(
-                        f"{self.tag}\t\tbest match for '{basename(m)}' is '{basename(best_match)}' with similarity {best_similarity}"
+                        f"\t\t[orange italic]{basename(m)} has no notes or embedding failed, skipping[/orange italic]"
                     )
-                    if similarity > best_similarity:
-                        best_aug = m
-                        best_path = ps
-                        best_match = match
-                        best_similarity = similarity
+                    continue
+                match, similarity = self.staff.seeker.get_match(embedding)
+                if similarity > best_similarity:
+                    best_aug = m
+                    best_match = match
+                    best_similarity = similarity
+                console.log(
+                    f"\t\tbest match for '{basename(m)}' is '{basename(match)}' with similarity {similarity}"
+                )
         else:
+            # if not removing notes, midi_paths already contains the rearranged (or original) paths
             best_aug = ""
             best_match = ""
             best_similarity = 0.0
-            for ps in midi_paths:
-                for m in ps:
-                    console.log(f"{self.tag}\t\t{basename(m)}")
-
-            # find best match for each augmentation
             for mid in midi_paths:
-                embedding = self.staff.seeker.get_embedding(mid, model="clap")
-                match, similarity = self.staff.seeker.get_match(embedding)
-                console.log(
-                    f"{self.tag}\t\tbest match for '{basename(mid)}' is '{basename(best_match)}' with similarity {best_similarity}"
+                embedding = self.staff.seeker.get_embedding(
+                    mid, model=self.staff.seeker.params.metric
                 )
+                if embedding is None or embedding.sum() == 0:
+                    console.log(
+                        f"\t\t[orange italic]{basename(mid)} has no notes or embedding failed, skipping[/orange italic]"
+                    )
+                    continue
+                match, similarity = self.staff.seeker.get_match(embedding)
                 if similarity > best_similarity:
                     best_aug = mid
                     best_match = match
                     best_similarity = similarity
+                console.log(
+                    f"\t\tbest match for '{basename(mid)}' is '{basename(match)}' with similarity {similarity}"
+                )
 
         console.log(
             f"{self.tag}\tbest augmentation is '{basename(best_aug)}' with similarity {best_similarity} matches to {best_match}"
         )
-
+        final_paths = []
         if seed_remove:
-            # add em all up
-            midi_paths = [
-                *best_path[: best_path.index(best_aug) + 1],
-                os.path.join(self.args.dataset_path, best_match + ".mid"),
-            ]
-            console.log(f"{self.tag}\t\tbp: {best_path}")
-            console.log(f"{self.tag}\t\tmp: {midi_paths}")
+            if best_aug:
+                aug_key_parts = basename(best_aug).split("-")
+                aug_key = aug_key_parts[0] + "-" + aug_key_parts[1]
+                for mid in midi_paths:
+                    if aug_key in basename(mid):
+                        final_paths.append(mid)
 
-        return midi_paths
+                # Add the best matching original file from the dataset
+                if best_match:
+                    final_paths.append(
+                        os.path.join(self.args.dataset_path, best_match + ".mid")
+                    )
+            else:
+                console.log(
+                    "[yellow]Warning: No suitable augmentation found after removal, returning original file.[/yellow]"
+                )
+                return [pf_midi]
+        else:
+            # If not removing, just return all generated/original paths (which are already flat)
+            final_paths = midi_paths
+
+        return final_paths
+
+    def _emit_current_file(self):
+        current_status = self.staff.scheduler.get_current_file()
+        if current_status is not None and self.playing_file != current_status[0]:
+            self.playing_file = current_status[0]
+            console.log(f"{self.tag} now playing '{self.playing_file}'")
+            self.s_status.emit(f"now playing '{self.playing_file}'")
+            num_files_remaining = self.params.n_transitions - current_status[1]
+            self.s_segments_remaining.emit(num_files_remaining)

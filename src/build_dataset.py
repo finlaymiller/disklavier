@@ -117,13 +117,13 @@ def segment_midi(
     """
     trackname = basename(midi_file_path)
     # preserve tempo across all segments
-    target_bpm = get_bpm(midi_file_path)
-    set_bpm(midi_file_path, target_bpm)
+    bpm = get_bpm(midi_file_path)
+    set_bpm(midi_file_path, bpm)
 
     # calculate times and stuff
     midi_pm = pretty_midi.PrettyMIDI(midi_file_path)
     total_file_length_s = midi_pm.get_end_time()
-    beat_length_s = 60 / target_bpm
+    beat_length_s = 60 / bpm
     segment_length_s = options.num_beats * beat_length_s
     n_segments = int(np.round(total_file_length_s / segment_length_s))
     pre_beat_window_s = (
@@ -131,41 +131,11 @@ def segment_midi(
     )  # capture when first note is a bit early
 
     if options.novelty:
-        piano_roll = midi_pm.get_piano_roll(fs=220)
-        ssm, novelty = gen_ssm_and_novelty(midi_file_path)
-        # save novelty curve
-        plt.figure(figsize=(16, 4))
-        plt.imshow(
-            trim_piano_roll(piano_roll),
-            aspect="auto",
-            origin="lower",
-            cmap="magma",
-            interpolation="nearest",
-        )
-        plt.plot(
-            (1 - novelty / novelty.max()) * 17,
-            "g",
-            linewidth=1.0,
-            alpha=0.7,
-        )
-        plt.axis("off")
-        plt.savefig(
-            os.path.join(options.pic_dir, f"{basename(midi_file_path)}_novelty.png")
-        )
-        plt.close()
+        add_novelty(midi_file_path, options.pic_dir)
 
-        # save ssm
-        plt.figure(figsize=(16, 16))
-        plt.imshow(ssm / ssm.max(), cmap="magma")
-        plt.axis("off")
-        plt.savefig(
-            os.path.join(options.pic_dir, f"{basename(midi_file_path)}_ssm.png")
-        )
-        plt.close()
-
-    console.log(
-        f"\tbreaking '{trackname}' ({total_file_length_s:.03f} s at {target_bpm} bpm) into {n_segments:03d} segments of {segment_length_s:.03f} s\n\t(pre window is {pre_beat_window_s:.03f} s)"
-    )
+    # console.log(
+    #     f"\tbreaking '{trackname}' ({total_file_length_s:.03f} s at {bpm} bpm) into {n_segments:03d} segments of {segment_length_s:.03f} s\n\t(pre window is {pre_beat_window_s:.03f} s)"
+    # )
 
     new_files = []
     # -1 because the last segment often contains a mistake or isn't otherwise suitable for playback
@@ -175,11 +145,10 @@ def segment_midi(
         end = start + segment_length_s + beat_length_s
         if n > 0:
             start += beat_length_s - pre_beat_window_s
-            
 
         # console.log(f"\t{n:03d} splitting from {start:08.03f} s to {end:07.03f} s")
 
-        segment_midi = pretty_midi.PrettyMIDI(initial_tempo=target_bpm)
+        segment_midi = pretty_midi.PrettyMIDI(initial_tempo=bpm)
         instrument = pretty_midi.Instrument(
             program=midi_pm.instruments[0].program,
             name=f"{trackname}_{int(start):04d}-{int(end):04d}",
@@ -196,10 +165,13 @@ def segment_midi(
                 )
                 # pad front of track to full bar for easier playback
                 if n > 0:
-                    new_note.start += pre_beat_window_s * (options.lead_window_beat_frac - 1)
-                    new_note.end += pre_beat_window_s * (options.lead_window_beat_frac - 1)
+                    new_note.start += pre_beat_window_s * (
+                        options.lead_window_beat_frac - 1
+                    )
+                    new_note.end += pre_beat_window_s * (
+                        options.lead_window_beat_frac - 1
+                    )
                 instrument.notes.append(new_note)
-
 
         # write out
         segment_filename = os.path.join(
@@ -208,20 +180,12 @@ def segment_midi(
 
         segment_midi.instruments.append(instrument)
         segment_midi.write(segment_filename)
-        set_bpm(segment_filename, target_bpm)
+        set_bpm(segment_filename, bpm)
         if options.beats:
-            add_beats_to_file(segment_filename, segment_filename, target_bpm)
+            add_beats_to_file(segment_filename, segment_filename, bpm)
         if options.metronome > 0:
             add_metronome(segment_filename, options.num_beats, options.metronome)
-        if options.novelty:
-            add_novelty(
-                segment_filename,
-                novelty,
-                options.num_beats,
-                (start, end),
-                options.pic_dir,
-            )
-        modify_end_of_track(segment_filename, segment_length_s, target_bpm)
+        modify_end_of_track(segment_filename, segment_length_s, bpm)
 
         new_files.append(segment_filename)
 
@@ -296,7 +260,7 @@ def process_files(
     return index
 
 
-def main(args) -> None:
+def main(args, debug: bool = False) -> None:
     start_time = time.time()
     # set up filesystem
     if not os.path.exists(args.data_dir):
@@ -363,23 +327,45 @@ def main(args) -> None:
     split_keys = np.array_split(tracks, num_cores)
 
     console.log(f"segmenting {len(tracks)} tracks")
-    with ProcessPoolExecutor() as executor:
-        futures = {
-            executor.submit(
-                process_files,
-                args,
-                list(chunk),
-                p_segments,
-                p_augments,
-                p_pictures,
-                index=i,
-            ): chunk
-            for i, chunk in enumerate(split_keys)
-        }
+    if debug:
+        for i, chunk in enumerate(split_keys):
+            console.log(f"Processing chunk {i+1}/{len(split_keys)}")
+            try:
+                index = process_files(
+                    args,
+                    list(chunk),
+                    p_segments,
+                    p_augments,
+                    p_pictures,
+                    index=i,
+                )
+                console.log(f"Finished processing chunk {index}")
+            except Exception as e:
+                console.log(f"[red bold]Error processing chunk {i}: {e}")
+                import traceback
 
-        for future in as_completed(futures):
-            index = future.result()
-            console.log(f"subprocess {index} returned")
+                traceback.print_exc()
+                # Decide whether to stop or continue
+                # raise  # Re-raise the exception to stop execution
+                console.log("[yellow]Continuing to next chunk...")
+    else:
+        with ProcessPoolExecutor() as executor:
+            futures = {
+                executor.submit(
+                    process_files,
+                    args,
+                    list(chunk),
+                    p_segments,
+                    p_augments,
+                    p_pictures,
+                    index=i,
+                ): chunk
+                for i, chunk in enumerate(split_keys)
+            }
+
+            for future in as_completed(futures):
+                index = future.result()
+                console.log(f"subprocess {index} returned")
 
     zip_path = os.path.join("data", "datasets", f"{args.dataset_name}_segments.zip")
     console.log(f"compressing to zipfile '{zip_path}'")
@@ -417,7 +403,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "-c", "--config", type=str, default=None, help="path to config file"
     )
+    parser.add_argument(
+        "--debug",
+        default=False,
+        action="store_true",
+        help="run in debug mode (sequential execution)",
+    )
     args = parser.parse_args()
     config = OmegaConf.load(args.config)
     console.log(config)
-    main(config)
+    main(config, args.debug)
