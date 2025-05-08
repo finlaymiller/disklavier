@@ -104,9 +104,11 @@ class SpectrogramDiffusion:
                 tmp_dir = os.path.join(os.path.dirname(path), "tmp")
                 os.makedirs(tmp_dir, exist_ok=True)
                 tmp_file = os.path.join(tmp_dir, basename(path))
+                console.log(f"{self.tag} changing tempo and trimming midi file")
                 change_tempo_and_trim(path, tmp_file, new_bpm)
                 path = tmp_file
 
+        console.log(f"{self.tag} processing midi file")
         tokens = self.processor(path)
         if self.verbose:
             console.log(

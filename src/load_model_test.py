@@ -2,7 +2,7 @@ from ml.specdiff.model import SpectrogramDiffusion, DEFAULT_CONFIG
 
 
 config = DEFAULT_CONFIG
-config["device"] = "cpu"
+config["device"] = "mps"
 config["encoder_weights_path"] = (
 	"/Users/finlay/Documents/Programming/disklavier/src/ml/specdiff/note_encoder.bin"
 )

@@ -10,27 +10,25 @@ from ml.specdiff.model import SpectrogramDiffusion, DEFAULT_CONFIG
 
 
 tag = "[white]main[/white]  :"
+config = DEFAULT_CONFIG
+config["device"] = "mps"
+config["encoder_weights_path"] = (
+    "/Users/finlay/Documents/Programming/disklavier/src/ml/specdiff/note_encoder.bin"
+)
+model = SpectrogramDiffusion(
+    new_config=config,
+    fix_time=False,
+    verbose=True,
+)
+model.embed("/Users/finlay/Documents/Programming/disklavier/data/datasets/test/velocitytweaks-060-05_c4vel100_t00s00.mid")
 
 def main(args, params):
+    global model
     app = QApplication(sys.argv)
-    model = load_model()
     main_window = MainWindow(args, params, model)
     main_window.args = args
     main_window.show()
     sys.exit(app.exec())
-
-
-def load_model():
-    config = DEFAULT_CONFIG
-    config["device"] = "mps"
-    config["encoder_weights_path"] = (
-        "/Users/finlay/Documents/Programming/disklavier/src/ml/specdiff/note_encoder.bin"
-    )
-    return SpectrogramDiffusion(
-        new_config=config,
-        fix_time=True,
-        verbose=True,
-    )
 
 
 def load_args(args):
@@ -166,7 +164,5 @@ if __name__ == "__main__":
             f"{tag} [red bold]ERROR[/red bold]: table directory not found, exiting..."
         )
         raise FileNotFoundError("table directory not found")
-
-    # model = load_model()
-
+    
     main(args, params)
