@@ -37,11 +37,9 @@ DEFAULT_CONFIG = {
         "vocab_size": 1536,
     },
     "encoder_weights_path": "/home/finlay/disklavier/src/ml/specdiff/note_encoder.bin",
+    "ts_min": 4.500,
+    "ts_max": 5.119,
 }
-
-TS_MIN = 4.500
-TS_MAX = 5.119
-
 
 class SpectrogramDiffusion:
     tag = "[light_pink4]spcdif[/light_pink4]:"
@@ -103,11 +101,11 @@ class SpectrogramDiffusion:
                 )
                 return torch.zeros(1, 768)
 
-            if midi_len < TS_MIN or midi_len > TS_MAX:
-                new_bpm = bpm * (midi_len / TS_MAX)
+            if midi_len < self.ts_min or midi_len > self.ts_max:
+                new_bpm = bpm * (midi_len / self.ts_max)
                 if self.verbose:
                     console.log(
-                        f"{self.tag} midi duration {midi_len:.03f} is out of bounds ({TS_MIN} to {TS_MAX}), changing tempo from {bpm} to {new_bpm:.03f}"
+                        f"{self.tag} midi duration {midi_len:.03f} is out of bounds ({self.ts_min} to {self.ts_max}), changing tempo from {bpm} to {new_bpm:.03f}"
                     )
                 tmp_dir = os.path.join(os.path.dirname(path), "tmp")
                 os.makedirs(tmp_dir, exist_ok=True)
@@ -127,8 +125,10 @@ class SpectrogramDiffusion:
                 )
             tokens = [tokens[0]]
 
-        all_tokens = [torch.IntTensor(token) for token in tokens]
+        console.log(f"{self.tag} inting")
+        all_tokens = torch.IntTensor(tokens) #[torch.IntTensor(token) for token in tokens]
 
+        console.log(f"{self.tag} embedding")
         embeddings = []
         for i in range(0, len(all_tokens)):
             batch = (
@@ -138,9 +138,11 @@ class SpectrogramDiffusion:
             )
             with torch.autocast("cuda" if "cuda" in self.device else "cpu"):
                 tokens_mask = batch > 0
+                console.log(f"{self.tag} embedding {i}")
                 tokens_embedded, tokens_mask = self.encoder(
                     encoder_input_tokens=batch, encoder_inputs_mask=tokens_mask
                 )
+            console.log(f"{self.tag} embedding {i} done")
             if self.verbose:
                 console.log(
                     f"{self.tag} generated embedding {i} ({tokens_embedded.shape})"
