@@ -11,31 +11,18 @@ from ml.specdiff.model import SpectrogramDiffusion, DEFAULT_CONFIG
 
 tag = "[white]main[/white]  :"
 
-config = DEFAULT_CONFIG
-config["device"] = "cpu"
-config["encoder_weights_path"] = (
-    "/Users/finlay/Documents/Programming/disklavier/src/ml/specdiff/note_encoder.bin"
-)
-model =  SpectrogramDiffusion(
-    new_config=config,
-    fix_time=True,
-    verbose=True,
-)
-
 def main(args, params):
     app = QApplication(sys.argv)
-    main_window = MainWindow(args, params)
+    model = load_model()
+    main_window = MainWindow(args, params, model)
     main_window.args = args
     main_window.show()
-
-    main_window.set_model(model)
-
     sys.exit(app.exec())
 
 
 def load_model():
     config = DEFAULT_CONFIG
-    config["device"] = "cpu"
+    config["device"] = "mps"
     config["encoder_weights_path"] = (
         "/Users/finlay/Documents/Programming/disklavier/src/ml/specdiff/note_encoder.bin"
     )

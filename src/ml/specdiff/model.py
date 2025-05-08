@@ -9,15 +9,8 @@ from diffusers.pipelines.deprecated.spectrogram_diffusion.notes_encoder import (
     SpectrogramNotesEncoder,
 )
 
-project_root = os.path.abspath(os.path.join(os.getcwd(), ".."))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-    from utils import console, basename
-    from utils.midi import change_tempo_and_trim, get_bpm
-else:
-    from src.utils import console, basename
-    from src.utils.midi import change_tempo_and_trim, get_bpm
+from utils import console, basename
+from utils.midi import change_tempo_and_trim, get_bpm
 
 from typing import Optional
 
@@ -40,6 +33,7 @@ DEFAULT_CONFIG = {
     "ts_min": 4.500,
     "ts_max": 5.119,
 }
+
 
 class SpectrogramDiffusion:
     tag = "[light_pink4]spcdif[/light_pink4]:"
@@ -126,17 +120,15 @@ class SpectrogramDiffusion:
             tokens = [tokens[0]]
 
         console.log(f"{self.tag} inting")
-        all_tokens = torch.IntTensor(tokens) #[torch.IntTensor(token) for token in tokens]
+        all_tokens = torch.IntTensor(
+            tokens
+        )  # [torch.IntTensor(token) for token in tokens]
 
         console.log(f"{self.tag} embedding")
         embeddings = []
         for i in range(0, len(all_tokens)):
-            batch = (
-                all_tokens[i].view(1, -1).cuda(self.device)
-                if "cuda" in self.device
-                else all_tokens[i].view(1, -1)
-            )
-            with torch.autocast("cuda" if "cuda" in self.device else "cpu"):
+            batch = all_tokens[i].view(1, -1).to(self.device)
+            with torch.autocast(self.device):
                 tokens_mask = batch > 0
                 console.log(f"{self.tag} embedding {i}")
                 tokens_embedded, tokens_mask = self.encoder(

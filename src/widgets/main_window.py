@@ -24,9 +24,10 @@ class MainWindow(QtWidgets.QMainWindow):
     midi_stop_event: Event
     run_thread: Optional[RunWorker] = None
 
-    def __init__(self, args, params):
+    def __init__(self, args, params, model):
         self.args = args
         self.params = params
+        self.model = model
         self.params.bpm = self.args.bpm
         self.td_system_start = datetime.now()
         self.recording_offset = 0  # seconds
@@ -61,26 +62,6 @@ class MainWindow(QtWidgets.QMainWindow):
         geometry = self.screen().availableGeometry()
         self.setMinimumSize(800, 600)
         self.resize(int(geometry.width() * 0.8), int(geometry.height() * 0.8))
-
-    def set_model(self, model):
-        """
-        set the model for the main window.
-
-        parameters
-        ----------
-        model : object
-            the model to be used by the window.
-        """
-        self.model = model
-        # If there are components that depend on the model and are initialized
-        # in __init__, you might need to re-initialize them or update them here.
-        # For example, if param_editor depends on the model:
-        # self.param_editor = ParameterEditorWidget(self.params, self)
-        # self.setCentralWidget(self.param_editor)
-        # Or, if workers depend on the model, you might need to re-initialize them
-        # if they were already created.
-        # if self.model is not None and hasattr(self, 'workers'):
-        # self.init_workers() # Or a more specific update method
 
     def _build_timer(self):
         # Create velocity label (left side)

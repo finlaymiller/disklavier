@@ -17,8 +17,8 @@ from utils.modes import find_path
 from workers.panther import Panther
 from utils import basename, console, panther
 from utils.constants import SUPPORTED_EXTENSIONS, EMBEDDING_SIZES
+from ml.specdiff.model import SpectrogramDiffusion, DEFAULT_CONFIG
 
-from utils.constants import SUPPORTED_EXTENSIONS, EMBEDDING_SIZES
 from typing import Optional
 
 
@@ -137,6 +137,17 @@ class Seeker(Worker):
         else:
             console.log(f"{self.tag} error loading neighbor table, exiting...")
             exit()  # TODO: handle this better (return an error, let main handle it)
+
+        config = DEFAULT_CONFIG.copy()
+        config["device"] = "mps"
+        config["encoder_weights_path"] = (
+            "/Users/finlay/Documents/Programming/disklavier/src/ml/specdiff/note_encoder.bin"
+        )
+        self.model = SpectrogramDiffusion(
+            new_config=config,
+            fix_time=True,
+            verbose=True,
+        )
 
         console.log(f"{self.tag} initialization complete")
 
