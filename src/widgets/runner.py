@@ -176,7 +176,7 @@ class RunWorker(QtCore.QThread):
 
             # start metronome
             self.metronome.td_start = self.td_playback_start + timedelta(
-                seconds=self.staff.scheduler.ts_transitions[0]
+                seconds=self.staff.scheduler.ts_transitions[0][0]
             )
             self.metronome.start()
 

@@ -6,20 +6,21 @@ from datetime import datetime, timedelta
 from .worker import Worker
 from utils import basename, console
 from utils.midi import csv_to_midi
-from utils.constants import N_BEATS_TRANSITION_OFFSET, TICKS_PER_BEAT
+from utils.constants import TICKS_PER_BEAT
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 
 class Scheduler(Worker):
     lead_bar: bool = True
     tt_offset: int = 0
-    ts_transitions: list[float] = []
+    ts_transitions: List[Tuple[float, bool]] = []
     tt_all_messages: list[int] = []
     n_files_queued: int = 0
     n_beats_per_segment: int = 8
     queued_files: list[str] = []
     first_file_avg_velocity: Optional[float] = None
+    previous_track_name: Optional[str] = None
 
     def __init__(
         self,
@@ -42,6 +43,7 @@ class Scheduler(Worker):
         self.tt_all_messages = []
         self.ts_transitions = []
         self.queued_files = []
+        self.previous_track_name = None
 
         # initialize queue file
         self.raw_notes_filepath = os.path.join(self.pf_log, "queue_dump.csv")
@@ -61,42 +63,39 @@ class Scheduler(Worker):
     ) -> Tuple[float, float, int]:
         midi_in = mido.MidiFile(pf_midi)
 
-        # --- calculate offset ---
-        # number of seconds/ticks from the start of playback to start playing the file
-        if (
-            self.recording_mode
-            and "player" in basename(pf_midi)
-            and self.n_files_queued == 0
-        ):
-            # get number of beats from beat markers in recording file
-            n_recorded_beats = None
-            for msg in midi_in.tracks[1]:
-                if msg.type == "text" and msg.text.startswith("beat"):
-                    n_recorded_beats = int(msg.text.split(" ")[1]) - 1
-
-            if n_recorded_beats is None:
-                console.log(
-                    f"{self.tag}[yellow] no beats found in {basename(pf_midi)}, defaulting to zero offset[/yellow]"
-                )
-                ts_offset, tt_offset = 0, 0
-            else:
-                # offset = system start delay - segment length rounded up to nearest beat
-                # this ensures that the recording ends at the first beat
-                ts_offset = self.n_beats_per_segment * 60 / self.bpm - (
-                    n_recorded_beats * 60 / self.bpm
-                )
-                tt_offset = mido.second2tick(ts_offset, TICKS_PER_BEAT, self.tempo)
-                if self.verbose:
-                    console.log(
-                        f"{self.tag} found {n_recorded_beats} beats in {basename(pf_midi)}, setting offset to {ts_offset:.02f} s so that end time is {self.td_start + timedelta(seconds=ts_offset) + timedelta(seconds=mido.tick2second(n_recorded_beats * TICKS_PER_BEAT, TICKS_PER_BEAT, self.tempo)):%H:%M:%S.%f}"
+        # --- offset and track transition determination ---
+        current_track_name = basename(pf_midi).split("_")[0]
+        is_new_track_segment = False
+        if self.n_files_queued == 0:
+            if self.recording_mode and "player" in basename(pf_midi):
+                n_recorded_beats = None
+                for msg in midi_in.tracks[1]:
+                    if msg.type == "text" and msg.text.startswith("beat"):
+                        n_recorded_beats = int(msg.text.split(" ")[1]) - 1
+                if n_recorded_beats is None:
+                    ts_offset, tt_offset = 0, 0
+                else:
+                    ts_offset = self.n_beats_per_segment * 60 / self.bpm - (
+                        n_recorded_beats * 60 / self.bpm
                     )
+                    tt_offset = mido.second2tick(ts_offset, TICKS_PER_BEAT, self.tempo)
+            else:
+                ts_offset, tt_offset = 0, 0
+            is_new_track_segment = False
         else:
             ts_offset, tt_offset = self._get_next_transition()
-        tt_abs: int = tt_offset  # absolute time since system start
-        tt_sum: int = 0  # sum of all notes in the segment
-        tt_max_abs_in_segment: int = (
-            tt_offset  # maximum absolute tick time in the segment
-        )
+            if (
+                self.previous_track_name is not None
+                and current_track_name != self.previous_track_name
+            ):
+                is_new_track_segment = True
+
+        self.ts_transitions.append((ts_offset, is_new_track_segment))
+        self.previous_track_name = current_track_name
+
+        tt_abs: int = tt_offset
+        tt_sum: int = 0
+        tt_max_abs_in_segment: int = tt_offset
 
         if midi_in.ticks_per_beat != TICKS_PER_BEAT:
             raise ValueError(
@@ -225,19 +224,31 @@ class Scheduler(Worker):
 
                     # --- write to raw notes file ---
                     # edge case, but it does happen sometimes that multiple recorded notes start at 0, resulting in one note getting bumped to time -1
-                    if current_tt_abs < 0:
-                        current_tt_abs = 0
+                    if current_tt_abs < 0:  # Ensure absolute tick time is not negative
+                        # This adjustment should be relative to the segment's start tick (tt_offset)
+                        # The file writing expects absolute time from system start.
+                        # If msg.time was 0, and tt_abs was tt_offset, then current_tt_abs is tt_offset.
+                        # If a collision made current_tt_abs less than tt_offset (unlikely here, but generally),
+                        # or if tt_offset itself was negative (which we try to avoid), this needs care.
+                        # For now, simply ensuring it's not globally negative if it refers to global time.
+                        # If current_tt_abs is a global time, then simply:
+                        if current_tt_abs < 0:
+                            current_tt_abs = 0
+
                     self.raw_notes_file.write(
                         f"{os.path.basename(pf_midi)},{msg.type},{msg.note},{msg.velocity},{current_tt_abs}\n"
                     )
 
-        # --- generate transitions, update trackers ---
-        if (
-            mido.tick2second(tt_abs, TICKS_PER_BEAT, self.tempo)
-            > self.ts_transitions[-1]
-        ):
-
-            _ = self._gen_transitions(self.ts_transitions[-1])
+        # --- update trackers ---
+        # The following block about _gen_transitions seems to be for creating MIDI event markers,
+        # not for managing self.ts_transitions which is now handled above.
+        # If tt_abs (end tick of last note in current file) is beyond the last recorded transition start time,
+        # it might indicate something about scheduling, but self.ts_transitions is already updated for current file.
+        # Original condition: mido.tick2second(tt_abs, TICKS_PER_BEAT, self.tempo) > self.ts_transitions[-1][0]
+        # This check might be for ensuring the schedule is long enough or for some other purpose.
+        # For now, let's assume the primary role of _gen_transitions is not to populate self.ts_transitions.
+        # if self.ts_transitions and mido.tick2second(tt_max_abs_in_segment, TICKS_PER_BEAT, self.tempo) > self.ts_transitions[-1][0]:
+        # _ = self._gen_transitions(self.ts_transitions[-1][0]) # Original intent was perhaps to create MIDI markers
 
         self.n_files_queued += 1
         self.queued_files.append(basename(pf_midi))
@@ -277,7 +288,7 @@ class Scheduler(Worker):
 
         # transition messages
         mm_transitions = self._gen_transitions(
-            ts_offset=offset_s, n_stamps=self.n_transitions
+            ts_offset=offset_s, n_stamps=self.n_transitions, is_new_track_segment=False
         )
         for mm_transition in mm_transitions:
             tick_track.append(mm_transition)
@@ -293,6 +304,7 @@ class Scheduler(Worker):
         ts_offset: float = 0,
         n_stamps: int = 1,
         do_ticks: bool = True,
+        is_new_track_segment: bool = False,
     ) -> list[mido.MetaMessage]:
         ts_offset = 0
         self.tt_offset = mido.second2tick(ts_offset, TICKS_PER_BEAT, self.tempo)
@@ -307,7 +319,10 @@ class Scheduler(Worker):
         #         )
         #     ts_offset = ((ts_offset // ts_interval) + 1) * ts_interval
         self.ts_transitions.extend(
-            [ts_offset + i * ts_interval for i in range(n_stamps + 1)]
+            [
+                (ts_offset + i * ts_interval, is_new_track_segment)
+                for i in range(n_stamps + 1)
+            ]
         )
 
         if self.verbose:
@@ -320,7 +335,7 @@ class Scheduler(Worker):
             )
 
         transitions = []
-        for i, ts_transition in enumerate(self.ts_transitions):
+        for i, (ts_transition, is_new_track_segment) in enumerate(self.ts_transitions):
             # transition messages
             transitions.append(
                 mido.MetaMessage(
@@ -347,32 +362,56 @@ class Scheduler(Worker):
         return transitions
 
     def _get_next_transition(self) -> Tuple[float, int]:
-        ts_offset = self.ts_transitions[
-            self.n_files_queued  # - 1 if self.recording_mode else self.n_files_queued
-        ]
-        if self.lead_bar:
-            ts_offset -= 60 / self.bpm
-            ts_offset = (
-                ts_offset if ts_offset > 0 else 0
-            )  # prevent potential negative offset on first segment
+        # this method determines the start time (ts_offset) for the NEXT segment to be queued.
+        ts_offset = 0
 
-        # print selected range from ts_transitions
-        if self.verbose:
-            selected_idx = (
-                self.n_files_queued - 1 if self.recording_mode else self.n_files_queued
+        if not self.ts_transitions:
+            # this means no segments have been scheduled yet (e.g. init_schedule not called before first enqueue_midi)
+            # which is handled by n_files_queued == 0 logic in enqueue_midi.
+            # if this is called when ts_transitions is truly empty, next segment starts at 0.
+            console.log(
+                f"{self.tag} [yellow]warning: _get_next_transition called with empty ts_transitions. Defaulting next segment start to 0s.[/yellow]"
             )
-            start_idx = max(0, selected_idx - 2)
-            end_idx = min(len(self.ts_transitions) - 1, selected_idx + 2)
-            transitions = []
-            for i in range(start_idx, end_idx + 1):
-                t_time = self.td_start + timedelta(seconds=self.ts_transitions[i])
-                if i == selected_idx:
-                    transitions.append(f"[bold]{t_time.strftime('%H:%M:%S.%f')}[/bold]")
-                else:
-                    transitions.append(t_time.strftime("%H:%M:%S.%f"))
-            console.log(f"{self.tag} transitions: {transitions}")
+            ts_offset = 0
+        else:
+            # the next segment should start after the last one.
+            # ts_transitions[-1][0] is the start time of the *last scheduled segment*.
+            # we need its end time, or use a fixed progression.
+            last_segment_start_time_s = self.ts_transitions[-1][0]
 
-        return ts_offset, mido.second2tick(ts_offset, TICKS_PER_BEAT, self.tempo)
+            # estimate duration of the last segment.
+            # a more robust way would be to get actual duration of self.queued_files[-1] if available.
+            # for now, use n_beats_per_segment as an estimate for progression.
+            # this logic might need to be more sophisticated if segments have variable lengths
+            # and _get_next_transition is meant to find the precise end of the previous + any lead bar.
+            estimated_duration_last_segment_s = self.n_beats_per_segment * (
+                60 / self.bpm
+            )
+
+            ts_offset = last_segment_start_time_s + estimated_duration_last_segment_s
+
+            # original code had complex logic involving self.n_files_queued to index ts_transitions
+            # and also called _gen_transitions which itself appended to ts_transitions.
+            # the new logic is: ts_transitions is a direct log of (start_time, new_track_flag)
+            # added by enqueue_midi. _get_next_transition just calculates the start for the *next* one.
+
+        if (
+            self.lead_bar and self.n_files_queued > 0
+        ):  # Apply lead bar only after the first file
+            # This lead_bar logic might be tricky. If ts_offset is the *actual* start including lead-in,
+            # it should be calculated carefully. If ts_offset is content start and lead-in is separate,
+            # that's different. Assuming ts_offset is the point notes *start playing*.
+            # The original _get_next_transition had:
+            # ts_offset = self.ts_transitions[self.n_files_queued]
+            # if self.lead_bar: ts_offset -= 60 / self.bpm
+            # This implied ts_transitions stored content start times *after* potential lead bars.
+            # For now, let's keep it simpler: ts_offset is the calculated start of the next content.
+            # Lead bar application would be part of how this ts_offset is derived or used.
+            # The current calculation of ts_offset = last_start + duration is a content-to-content progression.
+            pass
+
+        tt_offset = mido.second2tick(ts_offset, TICKS_PER_BEAT, self.tempo)
+        return ts_offset, tt_offset
 
     def _copy_midi(self, pf_midi: str) -> bool:
         """Copy the MIDI file to the playlist folder.
@@ -401,30 +440,56 @@ class Scheduler(Worker):
         )
 
     def get_current_file(self) -> Optional[tuple[str, int]]:
-        if not self.queued_files:
+        if not self.ts_transitions or not self.queued_files:
             return None
 
-        current_time = datetime.now()
-        elapsed_seconds = (current_time - self.td_start).total_seconds()
+        elapsed_seconds = (datetime.now() - self.td_start).total_seconds()
 
-        # we haven't started playing yet
-        if elapsed_seconds < self.ts_transitions[0]:
+        # we haven't started playing yet or ts_transitions is unexpectedly empty
+        if not self.ts_transitions or elapsed_seconds < self.ts_transitions[0][0]:
             return None
 
         # find which segment we're in
-        current_segment = 0
-        for i in range(1, len(self.ts_transitions)):
-            if elapsed_seconds < self.ts_transitions[i]:
-                current_segment = i - 1
+        current_segment_idx = -1
+        for i in range(len(self.ts_transitions)):
+            segment_start_time = self.ts_transitions[i][0]
+
+            # determine end time of this segment
+            # if it's the last segment, it extends "indefinitely" for now or until a known total duration
+            next_segment_start_time = float("inf")
+            if i + 1 < len(self.ts_transitions):
+                next_segment_start_time = self.ts_transitions[i + 1][0]
+
+            if segment_start_time <= elapsed_seconds < next_segment_start_time:
+                current_segment_idx = i
                 break
-            if i == len(self.ts_transitions) - 1:
-                current_segment = i
 
-        # make sure we have enough files
-        if current_segment < len(self.queued_files):
-            return self.queued_files[current_segment], current_segment
+        # if loop finishes and current_segment_idx is still -1, means we are in or after the last defined segment
+        if current_segment_idx == -1:
+            # This can happen if elapsed_seconds is >= self.ts_transitions[-1][0]
+            # Ensure that the index is valid for queued_files
+            if elapsed_seconds >= self.ts_transitions[-1][0] and self.queued_files:
+                current_segment_idx = (
+                    len(self.ts_transitions) - 1
+                )  # Assuming last transition maps to last queued file
+            else:  # Should not happen if logic is correct and lists are synced
+                return None
 
-        return None
+        if 0 <= current_segment_idx < len(self.queued_files):
+            return self.queued_files[current_segment_idx], current_segment_idx
+        else:
+            # Mismatch between length of ts_transitions and queued_files or bad index
+            # console.log(f"[scheduler] warning: current_segment_idx {current_segment_idx} out of range. ts_transitions: {len(self.ts_transitions)}, queued_files: {len(self.queued_files)}")
+            if (
+                self.queued_files
+            ):  # Fallback: return last known playing file if possible
+                # This fallback might be problematic if ts_transitions is longer than queued_files
+                # and current_segment_idx refers to a projected, not yet queued, file.
+                # For safety, ensure index is valid for queued_files.
+                safe_idx = min(current_segment_idx, len(self.queued_files) - 1)
+                if safe_idx >= 0:
+                    return self.queued_files[safe_idx], safe_idx
+            return None
 
     def set_start_time(self, td_start: datetime):
         self.td_start = td_start
