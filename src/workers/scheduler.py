@@ -14,7 +14,7 @@ from typing import Optional, Tuple
 class Scheduler(Worker):
     lead_bar: bool = True
     tt_offset: int = 0
-    ts_transitions: list[float] = []
+    ts_transitions = []
     tt_all_messages: list[int] = []
     n_files_queued: int = 0
     n_beats_per_segment: int = 8
@@ -40,7 +40,6 @@ class Scheduler(Worker):
         self.n_transitions = n_transitions
         self.recording_mode = recording_mode
         self.tt_all_messages = []
-        self.ts_transitions = []
         self.queued_files = []
 
         # initialize queue file
@@ -234,10 +233,10 @@ class Scheduler(Worker):
         # --- generate transitions, update trackers ---
         if (
             mido.tick2second(tt_abs, TICKS_PER_BEAT, self.tempo)
-            > self.ts_transitions[-1]
+            > self.ts_transitions[-1][0]
         ):
 
-            _ = self._gen_transitions(self.ts_transitions[-1])
+            _ = self._gen_transitions(self.ts_transitions[-1][0])
 
         self.n_files_queued += 1
         self.queued_files.append(basename(pf_midi))
@@ -307,20 +306,20 @@ class Scheduler(Worker):
         #         )
         #     ts_offset = ((ts_offset // ts_interval) + 1) * ts_interval
         self.ts_transitions.extend(
-            [ts_offset + i * ts_interval for i in range(n_stamps + 1)]
+            [[ts_offset + i * ts_interval, ""] for i in range(n_stamps + 1)]
         )
 
         if self.verbose:
             console.log(
                 f"{self.tag} segment interval is {ts_interval:.03f} seconds",
-                # [
-                #     f"{t:02.01f}  -> {self.td_start + timedelta(seconds=t):%H:%M:%S.%f}"
-                #     for t in self.ts_transitions[:-5]
-                # ],
+                [
+                    f"{t:02.01f}  -> {self.td_start + timedelta(seconds=t):%H:%M:%S.%f}"
+                    for t, tt in self.ts_transitions #[:-5]
+                ],
             )
 
         transitions = []
-        for i, ts_transition in enumerate(self.ts_transitions):
+        for i, (ts_transition, track) in enumerate(self.ts_transitions):
             # transition messages
             transitions.append(
                 mido.MetaMessage(
@@ -349,12 +348,12 @@ class Scheduler(Worker):
     def _get_next_transition(self) -> Tuple[float, int]:
         ts_offset = self.ts_transitions[
             self.n_files_queued  # - 1 if self.recording_mode else self.n_files_queued
-        ]
+        ][0]
         if self.lead_bar:
             ts_offset -= 60 / self.bpm
-            ts_offset = (
-                ts_offset if ts_offset > 0 else 0
-            )  # prevent potential negative offset on first segment
+            # ts_offset = (
+            #     ts_offset if ts_offset > 0 else 0
+            # )  # prevent potential negative offset on first segment
 
         # print selected range from ts_transitions
         if self.verbose:
@@ -365,7 +364,7 @@ class Scheduler(Worker):
             end_idx = min(len(self.ts_transitions) - 1, selected_idx + 2)
             transitions = []
             for i in range(start_idx, end_idx + 1):
-                t_time = self.td_start + timedelta(seconds=self.ts_transitions[i])
+                t_time = self.td_start + timedelta(seconds=self.ts_transitions[i][0])
                 if i == selected_idx:
                     transitions.append(f"[bold]{t_time.strftime('%H:%M:%S.%f')}[/bold]")
                 else:
@@ -408,13 +407,13 @@ class Scheduler(Worker):
         elapsed_seconds = (current_time - self.td_start).total_seconds()
 
         # we haven't started playing yet
-        if elapsed_seconds < self.ts_transitions[0]:
+        if elapsed_seconds < self.ts_transitions[0][0]:
             return None
 
         # find which segment we're in
         current_segment = 0
         for i in range(1, len(self.ts_transitions)):
-            if elapsed_seconds < self.ts_transitions[i]:
+            if elapsed_seconds < self.ts_transitions[i][0]:
                 current_segment = i - 1
                 break
             if i == len(self.ts_transitions) - 1:

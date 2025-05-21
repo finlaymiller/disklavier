@@ -1,30 +1,46 @@
 n_transitions: 32
 initialization: "recording" # kickstart random recording
 kickstart_path: "data/datasets/test/intervals-060-09_1_t00s00.mid"
-seed_rearrange: True
-seed_remove: 1
+player_tracking: true
+augmentation:
+  rearrange: True
+  remove: 0.1
+  target_notes_remaining: ~
+  notes_removed_per_step: 1
+  num_variations_per_step: 3
+  num_plays_per_segment_version: 1
+  total_segments_for_sequence: 1
 scheduler:
   verbose: True
+  scale_velocity: true
 seeker:
   verbose: True
-  seed: 1000
+  seed: ~
   system: "synth"
-  mode: "best" # best easy repeat random sequential playlist graph
+  mode: "probabilities" # best easy repeat random sequential playlist graph probabilities
   match: "current"
   metric: "specdiff" # pitch-histogram specdiff clf-4note clf-speed clf-tpose
-  graph_steps: 9
-  graph_track_revisit_interval: 3
+  block_shift: true
 player:
   verbose: False
   midi_port: "UM-2G Port 1"
 metronome:
-  verbose: True
+  verbose: False
   do_tick: True
 recorder:
   verbose: True
   midi_port: "UM-2G Port 1"
-  record: 64
+  record: 11 # cc pedal
+  pedal_type: "inverted"
 audio:
   verbose: True
   midi_port: "UM-2G Port 1"
   record: 64
+midi_control:
+  cc_listener:
+    enable: true
+    port_name: "USB Oxygen 8 v2"
+    cc_number: 82
+  transpose_listener:
+    enable: true
+    port_name: "USB Oxygen 8 v2"

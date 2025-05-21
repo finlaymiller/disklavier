@@ -22,8 +22,6 @@ seeker:
   mode: "probabilities" # best easy repeat random sequential playlist graph probabilities
   match: "current" # current, next, prev, next 2, prev 2
   metric: "specdiff" # pitch-histogram specdiff clf-4note clf-speed clf-tpose clamp
-  graph_steps: 9
-  graph_track_revisit_interval: 3
   block_shift: true
 player:
   verbose: false

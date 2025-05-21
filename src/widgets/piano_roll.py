@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QWidget
 from utils import console
 from utils.midi import TICKS_PER_BEAT
 
-from typing import Optional
+from typing import Optional, List, Tuple
 
 
 @dataclass
@@ -108,6 +108,7 @@ class PianoRollView(QGraphicsView):
         "grid": QColor(178, 178, 178, 128),
         "background": QColor(38, 38, 38),
         "transition": QColor(0, 200, 0, 128),
+        "highlight": QColor(55, 55, 55, 150),
     }
     min_note = 21  # A0
     max_note = 108  # C8
@@ -126,7 +127,7 @@ class PianoRollView(QGraphicsView):
     active_notes: dict[int, Note] = {}
     playing_notes = [0] * note_range
     current_tempo = default_bpm
-    tms_transition_times = []
+    transitions: List[Tuple[float, bool]] = []
 
     def __init__(self, parent=None):
         # --- pull attribs from parent ---
@@ -332,32 +333,72 @@ class PianoRollView(QGraphicsView):
 
         now_dt = datetime.now()
         for note_num in active_note_nums:
-            # end notes with the current time during cleanup
             self.note_off(int(note_num), now_dt)
 
     def drawBackground(self, painter, rect):
         super().drawBackground(painter, rect)
 
+        painter.fillRect(
+            self.key_width,
+            0,
+            self.window_width - self.key_width,
+            self.window_height,
+            self.colors["background"],
+        )
+
+        # self.draw_track_change_backgrounds(painter)
         self.draw_grid(painter)
         self.draw_transition_lines(painter)
         self.draw_notes(painter)
         self.draw_keyboard(painter)
 
-    def update_transitions(self, transitions: list[float]):
-        self.tms_transition_times = [
-            t * 1000 - self.tms_roll_length for t in transitions
-        ]
+    def update_transitions(self, transitions: List[Tuple[float, bool]]):
+        console.log(f"\tupdating transitions: {transitions}")
+        self.transitions = []
+        for t_sec, is_new_track_flag in transitions:
+            self.transitions.append((t_sec * 1000, is_new_track_flag))
+
+    def draw_track_change_backgrounds(self, painter):
+        if not self.transitions:
+            return
+
+        highlight_color = self.colors.get("highlight", QColor(55, 55, 55, 150))
+
+        for i, (start_ms, is_new_track_here) in enumerate(self.transitions):
+            if is_new_track_here:
+                # this segment (from start_ms to end_ms_of_this_segment) should be highlighted
+                x_start_region = self.time_to_x(start_ms)
+
+                end_ms_of_this_segment = -1
+                if i + 1 < len(self.transitions):
+                    end_ms_of_this_segment = self.transitions[i + 1][0]
+                else:
+                    end_ms_of_this_segment = (
+                        self.dtms_current_time + self.tms_roll_length * 1.5
+                    )
+
+                x_end_region = self.time_to_x(end_ms_of_this_segment)
+                draw_x_start = max(x_start_region, self.key_width)
+                draw_x_end = min(x_end_region, self.window_width)
+
+                if draw_x_start < draw_x_end:
+                    painter.fillRect(
+                        draw_x_start,
+                        0,
+                        draw_x_end - draw_x_start,
+                        self.window_height,
+                        highlight_color,
+                    )
 
     def draw_transition_lines(self, painter):
         """
         draw vertical green lines at transition points.
         """
         painter.setPen(QPen(self.colors["transition"], 2))
-        for transition_time in self.tms_transition_times:
-            x = self.time_to_x(transition_time)
-            # only draw if in visible area
+        for tms_transition, _ in self.transitions:
+            x = self.time_to_x(tms_transition)
             if self.key_width <= x <= self.window_width:
-                painter.drawLine(x, 0, x, self.window_height)
+                painter.drawLine(int(x), 0, int(x), self.window_height)
 
     def draw_keyboard(self, painter):
         # background

@@ -55,6 +55,7 @@ recorder:
   tick_2: "data/Metronome.wav"
   midi_port: "Disklavier"
   record: 67 # left pedal
+  pedal_type: "regular" # regular, inverted
 audio:
   tag: "[#af005f]audio [/#af005f]:"
   verbose: True

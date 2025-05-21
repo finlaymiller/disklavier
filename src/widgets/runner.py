@@ -161,7 +161,7 @@ class RunWorker(QtCore.QThread):
                 seconds=self.params.startup_delay + seconds_to_next_even
             )
             console.log(
-                f"{self.tag} start time set to {self.td_playback_start.strftime('%y-%m-%d %H:%M:%S')}"
+                f"{self.tag} start time set to {self.td_playback_start.strftime('%Y-%m-%d %H:%M:%S')}"
             )
             self.s_start_time.emit(self.td_playback_start)
             self.staff.scheduler.set_start_time(self.td_playback_start)
@@ -176,7 +176,7 @@ class RunWorker(QtCore.QThread):
 
             # start metronome
             self.metronome.td_start = self.td_playback_start + timedelta(
-                seconds=self.staff.scheduler.ts_transitions[0]
+                seconds=self.staff.scheduler.ts_transitions[0][0]
             )
             self.metronome.start()
 

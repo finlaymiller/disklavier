@@ -14,19 +14,19 @@ scheduler:
   verbose: True
 seeker:
   verbose: True
-  seed: ~
-  mode: "probabilities" # best easy repeat random sequential playlist graph probabilities
+  seed: 2
+  mode: "best" # best easy repeat random sequential playlist graph probabilities
   match: "current"
   metric: "specdiff" # pitch-histogram specdiff clf-4note clf-speed clf-tpose
   graph_steps: 9
   graph_track_revisit_interval: 3
-  block_shift: False
+  block_shift: true
 player:
   verbose: False
   midi_port: "to Max 1"
 metronome:
-  verbose: False
-  do_tick: False
+  verbose: True
+  do_tick: True
 recorder:
   verbose: True
   midi_port: "LPK25"

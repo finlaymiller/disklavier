@@ -110,8 +110,16 @@ class MidiRecorder(Worker, QtCore.QObject):
             for msg in inport:
                 # record pedal signal
                 if msg.type == "control_change" and msg.control == self.params.record:
-                    # record pedal released
-                    if msg.value == 0:
+                    # record pedal release check
+                    if self.params.pedal_type == "regular":
+                        pedal_released = msg.value == 0
+                    elif self.params.pedal_type == "inverted":
+                        pedal_released = msg.value == 127
+                    else:
+                        raise ValueError(f"Invalid pedal type: {self.params.pedal_type}")
+                    
+                    # stop recording
+                    if pedal_released:
                         end_time = datetime.now()
                         console.log(
                             f"{self.tag} recorded {(end_time - start_time).total_seconds():.02f} s"
