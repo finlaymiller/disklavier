@@ -1,4 +1,4 @@
-n_transitions: 4
+n_transitions: 8
 initialization: "random" # kickstart random recording
 kickstart_path: "/Users/finlay/Documents/Programming/disklavier/data/outputs/logs/250512-125822_specdiff_recording_9878761/player-query.mid"
 # kickstart_path: "data/datasets/test/intervals-060-09_1_t00s00.mid"
@@ -16,7 +16,7 @@ seeker:
   verbose: True
   seed: 123
   mode: "probabilities" # best easy repeat random sequential playlist graph probabilities
-  probabilities_dist: [0, 0,0,0,0,1]
+  probabilities_dist: [0.15, 0.15, 0.15, 0.15, 0.15, 0.25]
   match: "current"
   metric: "specdiff" # pitch-histogram specdiff clf-4note clf-speed clf-tpose
   graph_steps: 9

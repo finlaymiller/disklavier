@@ -36,6 +36,7 @@ class RunWorker(QtCore.QThread):
     stop_requested: bool = False
     ts_system_start = datetime.now()
     td_playback_start = datetime.now()
+    
     # signals
     s_status = QtCore.Signal(str)
     s_start_time = QtCore.Signal(datetime)
@@ -88,6 +89,10 @@ class RunWorker(QtCore.QThread):
         self.metronome = workers.Metronome(
             self.params.metronome, self.params.bpm, self.td_system_start
         )
+
+        console.log(f"{self.tag} initialization complete")
+        if self.args.verbose:
+            console.log(f"{self.tag} settings:\n{self.__dict__}")
 
     def run(self):
         # --- find match ---

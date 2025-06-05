@@ -575,8 +575,6 @@ class PianoRollWidget(QWidget):
         if parent is not None and hasattr(parent, "s_transition_times"):
             console.log(f"{self.tag} connecting transition signal")
             parent.s_transition_times.connect(self.pr_view.update_transitions)
-        else:
-            console.log(f"{self.tag} [yellow]no transition signal found[/yellow]")
 
         # create worker thread
         self.pr_builder = PianoRollBuilder(message_queue, self.bpm, self.td_start)

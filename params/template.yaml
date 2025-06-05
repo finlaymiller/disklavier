@@ -1,7 +1,7 @@
 n_beats_per_segment: 8
 n_transitions: 16
 startup_delay: 10
-initialization: "recording" # kickstart random recording audio
+initialization: "recording" # kickstart random recording
 kickstart_path: "data/datasets/20250320/augmented/20240429-068-06_0084-0091_t10s03.mid"
 # kickstart_path: "data/datasets/20250320/augmented/20241229-094-10_0091-0096_t00s00.mid"
 # kickstart_path: "data/datasets/test/intervals-060-09_1_t00s00.mid" # path to midi or matches.json
@@ -31,7 +31,7 @@ seeker:
   graph_steps: 9
   graph_track_revisit_interval: 3
   block_shift: True
-  probabilities_dist: [1/6, 1/6, 1/6, 1/6, 1/6, 1/6]
+  probabilities_dist: [0.25, 0.15, 0.15, 0.15, 0.15, 0.15]
   probability_transition_lookback: 3
 player:
   tag: "[blue]player[/blue]:"

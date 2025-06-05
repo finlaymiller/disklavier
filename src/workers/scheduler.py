@@ -103,7 +103,6 @@ class Scheduler(Worker):
 
         console.log(f"{self.tag} {self.previous_track_name} -> {current_track_name}")
         self.previous_track_name = current_track_name
-        console.log(f"{self.tag} {self.n_files_queued} is_new_track_segment: {is_new_track_segment}")
         self.ts_transitions[self.n_files_queued][1] = is_new_track_segment
         console.log(
             [
@@ -158,9 +157,9 @@ class Scheduler(Worker):
                     # 1. clamp velocity to below max
                     for msg in note_on_messages:
                         if msg.velocity > self.params.max_velocity:
-                            console.log(
-                                f"{self.tag}\t[grey50]clamping velocity: {msg.velocity} -> {self.params.max_velocity}[/grey50]"
-                            )
+                            # console.log(
+                            #     f"{self.tag}\t[grey50]clamping velocity: {msg.velocity} -> {self.params.max_velocity}[/grey50]"
+                            # )
                             msg.velocity = self.params.max_velocity
 
                     velocities_after_clamp = [m.velocity for m in note_on_messages]

@@ -87,7 +87,6 @@ def load_args(args):
     parser.add_argument(
         "-m",
         "--midi_control",
-        default=True,
         action="store_true",
         help="enable midi control (default True)",
     )

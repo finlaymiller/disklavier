@@ -90,9 +90,6 @@ class ParameterEditorWidget(QtWidgets.QWidget):
             blocked_params.append("min_threshold")
             blocked_params.append("max_threshold")
             blocked_params.append("middle_c_note_number")
-            # blocked_params.append("")
-            # blocked_params.append("")
-            # blocked_params.append("")
 
         self.init_ui()
 
@@ -102,7 +99,7 @@ class ParameterEditorWidget(QtWidgets.QWidget):
         """
         main_layout = QtWidgets.QVBoxLayout(self)
 
-        # Apply a stylesheet for larger text
+        # larger text
         self.setStyleSheet(
             """
             QLabel {
@@ -115,7 +112,7 @@ class ParameterEditorWidget(QtWidgets.QWidget):
                 font-size: 14px;
             }
             QCheckBox {
-                font-size: 14px; /* Or adjust as needed for checkbox text if separate */
+                font-size: 14px;
             }
             QGroupBox {
                 font-size: 16px;
@@ -129,7 +126,6 @@ class ParameterEditorWidget(QtWidgets.QWidget):
         """
         )
 
-        # Scroll area setup
         scroll_area = QtWidgets.QScrollArea()
         scroll_area.setWidgetResizable(True)
 
@@ -137,7 +133,7 @@ class ParameterEditorWidget(QtWidgets.QWidget):
         container_layout = QtWidgets.QVBoxLayout(container)
         container_layout.setSpacing(10)
 
-        # Create header
+        # header
         header_frame = QtWidgets.QFrame()
         header_layout = QtWidgets.QHBoxLayout(header_frame)
         header_layout.setContentsMargins(0, 0, 0, 0)
@@ -152,7 +148,7 @@ class ParameterEditorWidget(QtWidgets.QWidget):
 
         container_layout.addWidget(header_frame)
 
-        # Display parameters
+        # display parameters
         self.display_params(container_layout)
 
         scroll_area.setWidget(container)
@@ -177,7 +173,7 @@ class ParameterEditorWidget(QtWidgets.QWidget):
         based on `current_level_params`. `path_parts` tracks the nesting.
         groups are created for dictionary parameters up to two levels deep.
 
-        parameters
+        Parameters
         ----------
         parent_layout : QtWidgets.QLayout
             the layout to add widgets to.
@@ -186,7 +182,7 @@ class ParameterEditorWidget(QtWidgets.QWidget):
         path_parts : list[str]
             a list of keys representing the path to `current_level_params`.
 
-        returns
+        Returns
         -------
         bool
             true if any widgets were added to `parent_layout`, false otherwise.
@@ -243,11 +239,11 @@ class ParameterEditorWidget(QtWidgets.QWidget):
 
         return items_added_on_this_level
 
-    def add_param_row(self, layout, key, value):
+    def add_param_row(self, layout, key, value) -> None:
         """
         add a parameter row to the gui.
 
-        parameters
+        Parameters
         ----------
         layout : QLayout
             layout to add the row to.
@@ -260,17 +256,15 @@ class ParameterEditorWidget(QtWidgets.QWidget):
         row_layout = QtWidgets.QHBoxLayout(frame)
         row_layout.setContentsMargins(0, 2, 0, 2)
 
-        # Format display key
-        display_key = key.split(".")[-1]  # Get the part after the last dot
-        display_key = display_key.replace(
-            "_", " "
-        ).title()  # Replace underscores and capitalize
+        # format display key
+        display_key = key.split(".")[-1]
+        display_key = display_key.replace("_", " ").title()
 
         label = QtWidgets.QLabel(display_key)
         label.setFixedWidth(300)
         row_layout.addWidget(label)
 
-        # Use appropriate widget based on parameter type and options
+        # use appropriate widget based on parameter type and options
         if key == "seeker.probabilities_dist":
             # display list as comma-separated string
             str_value = ", ".join(map(str, value))
@@ -371,12 +365,12 @@ class ParameterEditorWidget(QtWidgets.QWidget):
         """
         get parameter value from the config using a dot-separated key path.
 
-        parameters
+        Parameters
         ----------
         key_path : str
             parameter key path (e.g., "section.subsection.key").
 
-        returns
+        Returns
         -------
         any
             parameter value, or none if the path is invalid.
@@ -398,7 +392,7 @@ class ParameterEditorWidget(QtWidgets.QWidget):
         """
         set parameter value in the config using a dot-separated key path.
 
-        parameters
+        Parameters
         ----------
         key_path : str
             parameter key path (e.g., "section.subsection.key").

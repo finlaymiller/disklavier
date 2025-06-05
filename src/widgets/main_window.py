@@ -1,5 +1,6 @@
 import os
 import yaml
+import time
 from queue import Queue
 from threading import Event
 from omegaconf import OmegaConf
@@ -38,7 +39,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # toolbar
         self.toolbar = QtWidgets.QToolBar("Time Toolbar")
         self.addToolBar(QtCore.Qt.ToolBarArea.TopToolBarArea, self.toolbar)
-        self._build_timer()
+        self._build_toolbar()
 
         # start by editing parameters
         self.param_editor = ParameterEditorWidget(self.params, self)
@@ -72,9 +73,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status.showMessage(f"loaded parameter file: '{param_path}'")
         self.status_label.setText(f"parameter file editor")
 
-    def _build_timer(self):
-        # Create velocity label (left side)
-        self.velocity_label = QtWidgets.QLabel("Velocity: <b>0.0</b>")
+    def _build_toolbar(self):
+        # create velocity label (left side)
+        self.velocity_label = QtWidgets.QLabel("Velocity: <b>----</b>")
         self.velocity_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         self.velocity_label.setMinimumWidth(120)
         font = self.velocity_label.font()
@@ -82,14 +83,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.velocity_label.setFont(font)
         self.toolbar.addWidget(self.velocity_label)
 
-        # Create segments label (after velocity)
-        self.segments_label = QtWidgets.QLabel("Segments Left: N/A")
+        # create segments label (after velocity)
+        self.segments_label = QtWidgets.QLabel("Segments Left: ----")
         self.segments_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         self.segments_label.setMinimumWidth(150)
         self.segments_label.setFont(font)  # use same font as velocity
         self.toolbar.addWidget(self.segments_label)
 
-        # Create status label (middle)
+        # create status label (middle)
         self.status_label = QtWidgets.QLabel("Initializing...")
         self.status_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.status_label.setMinimumWidth(300)
@@ -100,7 +101,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status_label.setFont(status_font)
         self.toolbar.addWidget(self.status_label)
 
-        # Add spacer between status and time
+        # add spacer between status and time
         spacer = QtWidgets.QWidget()
         spacer.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding,
@@ -126,13 +127,11 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         update the time display in the toolbar.
         """
-        current_time = QtCore.QTime.currentTime()
-        time_text = current_time.toString("hh:mm:ss")
-        delta = datetime.now() - self.td_system_start
-        delta_text = f"{delta.seconds//3600:02d}:{(delta.seconds//60)%60:02d}:{delta.seconds%60:02d}"
-        self.time_label.setText(time_text + " | " + delta_text)
+        runtime = datetime.now() - self.td_system_start
+        runtime_text = f"{runtime.seconds//3600:02d}:{(runtime.seconds//60)%60:02d}:{runtime.seconds%60:02d}"
+        self.time_label.setText(runtime_text)
 
-        # Update velocity display if workers are initialized
+        # update velocity display if workers are initialized
         if hasattr(self, "workers") and hasattr(self.workers, "midi_recorder"):
             avg_vel = self.workers.midi_recorder.avg_velocity
 
@@ -191,6 +190,8 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         initialize the workers.
         """
+        console.log(f"{self.tag} initializing scheduler")
+        self.status.showMessage(f"initializing scheduler")
         scheduler = workers.Scheduler(
             self.params.scheduler,
             self.params.bpm,
@@ -200,6 +201,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.params.n_transitions,
             self.params.initialization == "recording",
         )
+        console.log(f"{self.tag} initializing seeker")
+        self.status.showMessage(f"initializing seeker")
+        time.sleep(0.1)  # small delay to ensure UI updates
         seeker = workers.Seeker(
             self.params.seeker,
             self.p_aug,
@@ -208,6 +212,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.p_playlist,
             self.params.bpm,
         )
+        self.status.showMessage(f"initializing player")
         player = workers.Player(
             self.params.player, self.params.bpm, self.td_system_start
         )
@@ -230,8 +235,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.recording_widget.update_recording_time
         )
 
-        self.status.showMessage("workers initialized")
-
         # --- initialize midi control listener(s) ---
         if hasattr(self.args, "midi_control") and self.args.midi_control:
             console.log(f"{self.tag} initializing midi control listener...")
@@ -243,6 +246,8 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             console.log(f"{self.tag} midi control listener is disabled")
 
+        self.status.showMessage("all workers initialized")
+
     def switch_to_piano_roll(self, q_gui: Queue):
         console.log(f"{self.tag} switching to piano roll view")
         self.piano_roll = PianoRollWidget(q_gui, self)
@@ -252,9 +257,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.piano_roll.pr_view.update_transitions
             )
         self.status.showMessage("piano roll view activated")
-
-        # Ensure status bar is visible
-        self.status.setVisible(True)
 
     def save_and_start(self, params):
         """
