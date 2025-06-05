@@ -1,4 +1,5 @@
 SUPPORTED_EXTENSIONS: tuple[str, ...] = (".mid", ".midi")
+N_BEATS_TRANSITION_OFFSET: int = 8
 TICKS_PER_BEAT: int = 220
 EMBEDDING_SIZES: dict[str, int] = {
     "pitch-histogram": 12,
@@ -9,6 +10,8 @@ EMBEDDING_SIZES: dict[str, int] = {
     "clap": 512,
     "clamp": 768,
 }
+MAX_VEL: int = 127
+MAX_TRANSPOSE: int = 24 # not actually a maximum, but a high value
 NOTE_NAMES: dict[str, int] = {
     "C0": 12,
     "C#0": 13,
@@ -119,4 +122,3 @@ NOTE_NAMES: dict[str, int] = {
     "A#8": 118,
     "B8": 119,
 }
-N_BEATS_TRANSITION_OFFSET: int = 8

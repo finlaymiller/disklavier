@@ -10,8 +10,8 @@ from datetime import datetime
 import workers
 from workers import Staff
 from workers.midi_control_listener import MidiControlListener
-from utils import console, write_log, midi
-from widgets.runner import RunWorker
+from utils import console, write_log, midi, constants
+from widgets.runner import Runner
 from widgets.param_editor import ParameterEditorWidget
 from widgets.piano_roll import PianoRollWidget
 from widgets.recording_view import RecordingWidget
@@ -23,7 +23,7 @@ class MainWindow(QtWidgets.QMainWindow):
     tag = "[white]main[/white]  :"
     workers: Staff
     midi_stop_event: Event
-    th_run: Optional[RunWorker] = None
+    th_run: Optional[Runner] = None
     midi_listener: Optional[MidiControlListener] = None
 
     def __init__(self, args, params):
@@ -75,7 +75,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _build_toolbar(self):
         # create velocity label (left side)
-        self.velocity_label = QtWidgets.QLabel("Velocity: <b>----</b>")
+        self.velocity_label = QtWidgets.QLabel("Velocity: ----")
         self.velocity_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         self.velocity_label.setMinimumWidth(120)
         font = self.velocity_label.font()
@@ -87,7 +87,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.segments_label = QtWidgets.QLabel("Segments Left: ----")
         self.segments_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         self.segments_label.setMinimumWidth(150)
-        self.segments_label.setFont(font)  # use same font as velocity
+        self.segments_label.setFont(font)
         self.toolbar.addWidget(self.segments_label)
 
         # create status label (middle)
@@ -101,6 +101,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status_label.setFont(status_font)
         self.toolbar.addWidget(self.status_label)
 
+        # create cc trackers
+        self.duet_sens_label = QtWidgets.QLabel("Duet Sensitivity: ----")
+        self.duet_sens_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        self.duet_sens_label.setMinimumWidth(150)
+        self.duet_sens_label.setFont(font)
+        self.toolbar.addWidget(self.duet_sens_label)
+        self.rhythm_sens_label = QtWidgets.QLabel("Rhythm Tracking: ----")
+        self.rhythm_sens_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        self.rhythm_sens_label.setMinimumWidth(150)
+        self.rhythm_sens_label.setFont(font)
+        self.toolbar.addWidget(self.rhythm_sens_label)
+        self.melody_sens_label = QtWidgets.QLabel("Melody Tracking: ----")
+        self.melody_sens_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        self.melody_sens_label.setMinimumWidth(150)
+        self.melody_sens_label.setFont(font)
+        self.toolbar.addWidget(self.melody_sens_label)
+
         # add spacer between status and time
         spacer = QtWidgets.QWidget()
         spacer.setSizePolicy(
@@ -109,42 +126,76 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         self.toolbar.addWidget(spacer)
 
-        # Create time label (right side)
+        # create time label (right side)
         self.time_label = QtWidgets.QLabel()
         self.time_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         self.time_label.setMinimumWidth(100)
         self.toolbar.addWidget(self.time_label)
 
-        # Timer to update the time and velocity
+        # timer to automatically update the time and velocity
         self.timer = QtCore.QTimer(self)
-        self.timer.timeout.connect(self._update_time)
-        self.timer.start(100)  # update every 100ms for smoother velocity updates
+        self.timer.timeout.connect(self._update_toolbar)
+        self.timer.start(100)  # ms
 
-        # Initial time update
-        self._update_time()
+        self._update_toolbar()
 
-    def _update_time(self):
+    def _update_toolbar(
+        self, duet_sens: Optional[int] = None, transpose: Optional[int] = None
+    ):
         """
-        update the time display in the toolbar.
+        update the toolbar
+
+        TODO: this is poorly designed and should be refactored to avoid
+        unnecessary updates and checks.
         """
         runtime = datetime.now() - self.td_system_start
         runtime_text = f"{runtime.seconds//3600:02d}:{(runtime.seconds//60)%60:02d}:{runtime.seconds%60:02d}"
         self.time_label.setText(runtime_text)
 
-        # update velocity display if workers are initialized
+        # update velocity display
+        # TODO: use the same method as the values below
         if hasattr(self, "workers") and hasattr(self.workers, "midi_recorder"):
             avg_vel = self.workers.midi_recorder.avg_velocity
-
-            # Determine color based on velocity
-            if avg_vel < 40:
+            if avg_vel < 30:
                 color = "light blue"
-            elif avg_vel < 80:
+            elif avg_vel < 60:
+                color = "yellow"
+            elif avg_vel < 90:
                 color = "orange"
             else:
                 color = "red"
 
             self.velocity_label.setText(
-                f"Velocity: <b><font color='{color}'>{avg_vel:.1f}</font></b>"
+                f"Velocity: <b><font color='{color}'>{int(100 * avg_vel / constants.MAX_VEL)}%</font></b>"
+            )
+
+        # update player follow threshold
+        if duet_sens is not None:
+            max_sens = self.params.midi_control.cc_listener.max_threshold
+            scaled_sens = int(100 * duet_sens / max_sens)
+            if scaled_sens < 25:
+                color = "green"
+            elif scaled_sens < 50:
+                color = "yellow"
+            elif scaled_sens < 75:
+                color = "orange"
+            else:
+                color = "red"
+            self.duet_sens_label.setText(
+                f"Duet Sensitivity: <b><font color='{color}'>{scaled_sens}%</font></b>"
+            )
+
+        if transpose is not None:
+            if transpose < constants.MAX_TRANSPOSE * 0.25:
+                color = "green"
+            elif transpose < constants.MAX_TRANSPOSE * 0.5:
+                color = "yellow"
+            elif transpose < constants.MAX_TRANSPOSE * 0.75:
+                color = "orange"
+            else:
+                color = "red"
+            self.duet_sens_label.setText(
+                f"Duet Sensitivity: <b><font color='{color}'>{transpose}%</font></b>"
             )
 
     def init_fs(self):
@@ -236,7 +287,10 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
         # --- initialize midi control listener(s) ---
-        if hasattr(self.args, "midi_control") and self.args.midi_control:
+        if (
+            self.params.midi_control.cc_listener.enable
+            or self.params.midi_control.transpose_listener.enable
+        ):
             console.log(f"{self.tag} initializing midi control listener...")
             self.midi_listener = MidiControlListener(
                 app_params=self.params.midi_control,
@@ -307,7 +361,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status_label.setText("Recording View")
 
         # start the main processing in a QThread
-        self.th_run = RunWorker(self)
+        self.th_run = Runner(self)
         self.th_run.s_start_time.connect(self.update_start_time)
         self.th_run.s_status.connect(self.update_status)
         self.th_run.s_segments_remaining.connect(self.update_segments_display)
@@ -318,6 +372,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.th_run.s_embedding_processed.connect(
             self.recording_widget.update_augmentation_progress
         )
+        self.th_run.s_duet_sensitivity.connect(self.update_duet_sensitivity)
+        self.th_run.s_transpose.connect(self.update_transpose)
         self.th_run.start()
 
         # enable stop button now that system is running
@@ -369,7 +425,11 @@ class MainWindow(QtWidgets.QMainWindow):
         style = "border-radius: 4px; padding: 2px 8px;"
 
         # check if message matches the pattern "now playing 'x_y_tNNsNN'"
-        if "now playing" in message and "s" in message:
+        if (
+            not self.params.seeker.block_shift
+            and "now playing" in message
+            and "s" in message
+        ):
             try:
                 # extract the number after 's'
                 s_index = message.rindex("s")
@@ -385,6 +445,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.status_label.setStyleSheet(style)
         self.status_label.setText(message)
+
+    def update_duet_sensitivity(self, cc_value: int) -> None:
+        self._update_toolbar(duet_sens=cc_value)
+
+    def update_transpose(self, cc_value: int) -> None:
+        self._update_toolbar(transpose=cc_value)
 
     def cleanup_workers(self):
         """

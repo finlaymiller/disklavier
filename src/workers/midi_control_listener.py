@@ -32,8 +32,8 @@ class MidiControlListener:
         ----------
         app_params : OmegaConf
             the main application configuration object.
-        run_worker_ref : RunWorker
-            a reference to the main runworker instance.
+        run_worker_ref : Runner
+            a reference to the main runner instance.
         player_ref : Player
             a reference to the player instance.
         """
@@ -166,9 +166,7 @@ class MidiControlListener:
                             )
                             new_threshold = round(new_threshold, 2)
 
-                        self.run_worker_ref.player_embedding_diff_threshold = (
-                            new_threshold
-                        )
+                        self.run_worker_ref.update_duet_sensitivity(new_threshold)
 
                         console.log(
                             f"{self.tag} player_embedding_diff_threshold set to {new_threshold} (cc value: {cc_value})"
@@ -265,6 +263,8 @@ class MidiControlListener:
         continuously listen for note_on messages on the transpose midi port.
         this method is intended to be run in a separate thread.
         """
+        current_hist = np.zeros(128)
+
         # --- init connection ---
         if not self.params.chord_listener.port_name:
             console.log(

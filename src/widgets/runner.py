@@ -21,7 +21,7 @@ from utils.midi import TICKS_PER_BEAT, MidiAugmentationConfig
 from typing import Optional
 
 
-class RunWorker(QtCore.QThread):
+class Runner(QtCore.QThread):
     """
     worker thread that handles the main application run loop.
     """
@@ -36,7 +36,7 @@ class RunWorker(QtCore.QThread):
     stop_requested: bool = False
     ts_system_start = datetime.now()
     td_playback_start = datetime.now()
-    
+
     # signals
     s_status = QtCore.Signal(str)
     s_start_time = QtCore.Signal(datetime)
@@ -45,6 +45,8 @@ class RunWorker(QtCore.QThread):
     s_segments_remaining = QtCore.Signal(int)
     s_augmentation_started = QtCore.Signal(int)
     s_embedding_processed = QtCore.Signal()
+    s_duet_sensitivity = QtCore.Signal(float)
+    s_transpose = QtCore.Signal(int)
 
     # queues
     q_playback = PriorityQueue()
@@ -575,7 +577,7 @@ class RunWorker(QtCore.QThread):
         """
         Adjusts the upcoming playback based on the embedding difference.
 
-        WARNING: This function is not thread-safe and is currently disabled.
+        WARN: This function is not thread-safe and is currently disabled.
         """
         raise NotImplementedError("this method is not implemented yet.")
         # 1. Calculate Target Time & Tick
@@ -595,7 +597,7 @@ class RunWorker(QtCore.QThread):
 
         # --- Need to lock or safely modify scheduler state ---
         # This section needs careful handling if scheduler runs in parallel.
-        # Assuming RunWorker directly manages scheduler state for now.
+        # Assuming Runner directly manages scheduler state for now.
         # TODO: Add locking if Scheduler becomes multi-threaded.
 
         # 3. Wipe Scheduler Future
@@ -635,7 +637,7 @@ class RunWorker(QtCore.QThread):
                 :num_files_before
             ]
             self.staff.scheduler.n_files_queued = num_files_before
-            self.n_files_queued = num_files_before  # Keep RunWorker's count synced
+            self.n_files_queued = num_files_before  # Keep Runner's count synced
 
             # Recalculate ts_queue (approximate)
             # TODO: More accurate recalculation? This assumes segments have roughly equal length.
@@ -739,7 +741,7 @@ class RunWorker(QtCore.QThread):
         """
         augment a midi file based on the provided configuration.
 
-        note: the best match (if applicable through seeker) is also returned as the last element of the list.
+        NOTE: the best match (if applicable through seeker) is also returned as the last element of the list.
 
         Parameters
         ----------
@@ -1115,3 +1117,7 @@ class RunWorker(QtCore.QThread):
             self.s_status.emit(f"now playing '{self.playing_file}'")
             num_files_remaining = self.params.n_transitions - current_status[1]
             self.s_segments_remaining.emit(num_files_remaining)
+
+    def update_duet_sensitivity(self, sensitivity: float):
+        self.player_embedding_diff_threshold = sensitivity
+        self.s_duet_sensitivity.emit(sensitivity)

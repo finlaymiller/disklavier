@@ -38,7 +38,7 @@ audio:
   record: 64
 midi_control:
   cc_listener:
-    enable: false
+    enable: true
     port_name: "nanoKONTROL2 SLIDER/KNOB"
     cc_number: 23
   transpose_listener:

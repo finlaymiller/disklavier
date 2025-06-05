@@ -91,6 +91,7 @@ class MidiRecorder(Worker, QtCore.QObject):
         end_time = 0
         last_note_time = start_time
         tt_recording_length = 0
+        t_recording_start = start_time
 
         midi = mido.MidiFile(ticks_per_beat=TICKS_PER_BEAT)
         track = mido.MidiTrack()
@@ -116,8 +117,10 @@ class MidiRecorder(Worker, QtCore.QObject):
                     elif self.params.pedal_type == "inverted":
                         pedal_released = msg.value == 127
                     else:
-                        raise ValueError(f"Invalid pedal type: {self.params.pedal_type}")
-                    
+                        raise ValueError(
+                            f"Invalid pedal type: {self.params.pedal_type}"
+                        )
+
                     # stop recording
                     if pedal_released:
                         end_time = datetime.now()
@@ -294,39 +297,45 @@ class MidiRecorder(Worker, QtCore.QObject):
         # initialize velocity tracking variables
         self._velocity_window = []  # list of (timestamp, velocity) tuples
 
-        if self.verbose:
-            console.log(f"{self.tag} listening on port '{self.params.midi_port}'")
-        self.is_recording = True
-
         last_msg_time = td_start
-        with mido.open_input(self.params.midi_port) as inport:  # type: ignore
-            for msg in inport:
-                # record note
-                current_time = datetime.now()
+        try:
+            with mido.open_input(self.params.midi_port) as inport:  # type: ignore
+                if self.verbose:
+                    console.log(
+                        f"{self.tag} listening on port '{self.params.midi_port}'"
+                    )
+                self.is_recording = True
+                for msg in inport:
+                    # record note
+                    current_time = datetime.now()
 
-                # emit progress for passive recording
-                elapsed_seconds = (
-                    current_time - self.passive_recording_start_timestamp
-                ).total_seconds()
-                elapsed_beats = elapsed_seconds * (self.bpm / 60.0)
-                self.s_recording_progress.emit(elapsed_seconds, elapsed_beats)
+                    # emit progress for passive recording
+                    elapsed_seconds = (
+                        current_time - self.passive_recording_start_timestamp
+                    ).total_seconds()
+                    elapsed_beats = elapsed_seconds * (self.bpm / 60.0)
+                    self.s_recording_progress.emit(elapsed_seconds, elapsed_beats)
 
-                # calculate time in ticks since last message
-                time_diff = (current_time - last_msg_time).total_seconds()
-                msg = msg.copy(time=int(time_diff * TICKS_PER_BEAT * self.bpm / 60))
-                self.recorded_notes.append(msg)
-                last_msg_time = current_time
+                    # calculate time in ticks since last message
+                    time_diff = (current_time - last_msg_time).total_seconds()
+                    msg = msg.copy(time=int(time_diff * TICKS_PER_BEAT * self.bpm / 60))
+                    self.recorded_notes.append(msg)
+                    last_msg_time = current_time
 
-                # update velocity stats
-                if msg.type == "note_on" and msg.velocity > 0:
-                    self._update_velocity_stats(current_time.timestamp(), msg)
+                    # update velocity stats
+                    if msg.type == "note_on" and msg.velocity > 0:
+                        self._update_velocity_stats(current_time.timestamp(), msg)
 
-                # check stop conditions
-                if not self.is_recording:
-                    break
-                if stop_event is not None and stop_event.is_set():
-                    self.is_recording = False
-                    break
+                    # check stop conditions
+                    if not self.is_recording:
+                        break
+                    if stop_event is not None and stop_event.is_set():
+                        self.is_recording = False
+                        break
+        except OSError as e:
+            console.log(f"{self.tag} error opening MIDI port: {e}")
+            console.print_exception(show_locals=True)
+            self.is_recording = False
 
         console.log(f"{self.tag} stopped recording ({len(self.recorded_notes)} notes)")
 

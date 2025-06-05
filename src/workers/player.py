@@ -11,7 +11,7 @@ from .worker import Worker
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from widgets.runner import RunWorker
+    from widgets.runner import Runner
 
 
 class Player(Worker):
@@ -32,8 +32,8 @@ class Player(Worker):
     _velocity_adjustment_factor: float = 1.0
     _last_factor: float = 0
 
-    # Reference to the RunWorker for cutoff time
-    _runner: Optional["RunWorker"] = None
+    # Reference to the Runner for cutoff time
+    _runner: Optional["Runner"] = None
 
     def __init__(self, params, bpm: int, t_start: datetime):
         super().__init__(params, bpm=bpm)
@@ -59,7 +59,7 @@ class Player(Worker):
         self._recorder = recorder
         console.log(f"{self.tag} connected to recorder for velocity updates")
 
-    def set_runner_ref(self, runner_ref: "RunWorker"):
+    def set_runner_ref(self, runner_ref: "Runner"):
         self._runner = runner_ref
         console.log(f"{self.tag} connected to runner for cutoff checks")
 
@@ -173,7 +173,7 @@ class Player(Worker):
 
             tt_abs, msg = queue.get()
 
-            # Check if message time is beyond the cutoff set by RunWorker
+            # Check if message time is beyond the cutoff set by Runner
             if self._runner is not None and tt_abs >= self._runner.playback_cutoff_tick:
                 if self.verbose:
                     console.log(
