@@ -101,14 +101,15 @@ class Scheduler(Worker):
             ):
                 is_new_track_segment = True
 
-        console.log(f"{self.tag} {self.previous_track_name} -> {current_track_name}")
         self.previous_track_name = current_track_name
         self.ts_transitions[self.n_files_queued][1] = is_new_track_segment
+        latest_transitions = self.ts_transitions if len(self.ts_transitions) < 5 else self.ts_transitions[-5:]
+        console.log(latest_transitions)
         console.log(
             [
                 f"[{t[1]}] {t[0]:02.01f}  -> {self.td_start + timedelta(seconds=t[0]):%H:%M:%S.%f}"
-                for t in self.ts_transitions
-                if self.td_start + timedelta(seconds=t[0]) < datetime.now() + timedelta(seconds=12)
+                for t in latest_transitions
+                # if self.td_start + timedelta(seconds=t[0]) < datetime.now() + timedelta(seconds=12)
             ],
         )
 

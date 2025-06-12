@@ -74,6 +74,7 @@ class ParameterEditorWidget(QtWidgets.QWidget):
         self.params = params
         self.param_widgets = {}
 
+        # cleaner ui during demo
         if self.params.seeker.system == "demo":
             blocked_params.append("kickstart_path")
             blocked_params.append("graph_steps")

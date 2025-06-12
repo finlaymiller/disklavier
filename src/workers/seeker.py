@@ -1,11 +1,10 @@
 import os
 import json
+import yaml
 import faiss
 import numpy as np
 import pandas as pd
 import networkx as nx
-from glob import glob
-from shutil import copy2
 from pretty_midi import PrettyMIDI
 from scipy.spatial.distance import cosine
 from PySide6 import QtCore
@@ -79,11 +78,31 @@ class Seeker(Worker, QtCore.QObject):
         self.filename_to_index = {}
 
         # set seed randomly if not an integer
-        if isinstance(self.params.seed, int):
+        if isinstance(self.params.seed, int) and self.params.seed >= 0:
             seed = self.params.seed
         else:
             seed = np.random.randint(0, 10000000)
             console.log(f"{self.tag} using random seed: {seed}")
+
+            # update parameter file on disk
+            param_path = os.path.join(
+                os.path.dirname(self.p_playlist), "parameters.yaml"
+            )
+            console.log(f"{self.tag} updating seed in parameter file: '{param_path}'")
+            if not os.path.isfile(param_path):
+                console.log(
+                    f"{self.tag} [yellow bold]error: parameter file '{param_path}' not found[/yellow bold]"
+                )
+                console.log(f"{self.tag} \t seed will not be updated")
+            else:
+                with open(param_path, "r") as f:
+                    data = yaml.safe_load(f)
+
+                if "seeker" in data:
+                    data["seeker"]["seed"] = seed
+
+                with open(param_path, "w") as f:
+                    yaml.dump(data, f, default_flow_style=False)
         self.rng = np.random.default_rng(seed)
 
         if (
@@ -305,6 +324,7 @@ class Seeker(Worker, QtCore.QObject):
         return os.path.join(self.p_dataset, random_file)
 
     def _get_best(self, hop: bool = False) -> tuple[str, float]:
+        final_similarity = -1.0
         if self.verbose:
             console.log(
                 f"{self.tag} finding most similar file to '{self.played_files[-1]}'"
@@ -814,7 +834,7 @@ class Seeker(Worker, QtCore.QObject):
                 *[(i, d) for i, d in zip(indices[0], similarities[0])]
             )
 
-        return indices, similarities
+        return indices, similarities  # type: ignore
 
     def base_file(self, filename: str) -> str:
         if "player" in filename:
@@ -825,10 +845,13 @@ class Seeker(Worker, QtCore.QObject):
     def get_match(
         self, query_embedding: np.ndarray, metric: str | None = None
     ) -> tuple[str, float]:
+        faiss_index = self.faiss_index
+
         if metric is None:
             metric = str(self.params.metric)
         elif metric not in EMBEDDING_SIZES.keys():
             raise ValueError(f"metric '{metric}' not found in {EMBEDDING_SIZES.keys()}")
+
         console.log(f"{self.tag} getting match using metric '{metric}'")
         if metric != self.params.metric:
             pf_index = os.path.join(self.p_table, f"{metric}.faiss")
@@ -880,7 +903,7 @@ class Seeker(Worker, QtCore.QObject):
         current_played_file = basename(self.played_files[-1])
         current_played_file_base = self.base_file(current_played_file).split(".")[0]
         augmentation_key_part = current_played_file.split("_")[-1]
-        
+
         query_file_base_key: str
         if chosen_action == "current" or chosen_action == "transition":
             query_file_base_key = current_played_file_base
@@ -892,7 +915,7 @@ class Seeker(Worker, QtCore.QObject):
 
                 if pd.isna(neighbor) or neighbor is None:
                     raise KeyError
-                
+
                 query_file_base_key = str(neighbor)
             except KeyError:
                 console.log(
@@ -1064,6 +1087,16 @@ class Seeker(Worker, QtCore.QObject):
                 else:
                     embedding = np.zeros_like(embedding)
 
+        # move embedding if player offset is present
+        if self.offset_embedding is not None:
+            # embedding += self.offset_embedding
+            embedding = (0.9 * embedding + 0.1 * self.offset_embedding) / 2
+
+            if self.verbose:
+                console.log(
+                    f"{self.tag} added player offset to query embedding: {self.offset_embedding.shape}"
+                )
+            self.offset_embedding = None
         query_embedding_np = np.array(embedding, dtype=np.float32).reshape(1, -1)
         indices, similarities = self._faiss_search(
             query_embedding_np, num_matches=num_matches

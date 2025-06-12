@@ -1,9 +1,10 @@
-n_transitions: 64
+n_transitions: 32
 initialization: "random" # kickstart random recording audio
 kickstart_path: "data/datasets/20250420/augmented/20240429-068-06_0084-0091_t10s03.mid"
 # kickstart_path: "data/datasets/20250420/augmented/20241229-094-10_0091-0096_t00s00.mid"
 # kickstart_path: "data/datasets/test/intervals-060-09_1_t00s00.mid"
-player_tracking: true
+player_tracking: "threshold" # threshold, waverage
+player_tracking_weight: 1.0
 augmentation:
   rearrange: True
   remove: 0.1
@@ -17,13 +18,13 @@ scheduler:
   scale_velocity: true
 seeker:
   verbose: True
-  seed: ~
+  seed: -1
   system: "live"
   mode: "probabilities" # best easy repeat random sequential playlist graph probabilities
   match: "current" # current, next, prev, next 2, prev 2
   metric: "specdiff" # pitch-histogram specdiff clf-4note clf-speed clf-tpose clamp
   block_shift: true
-  probabilities_dist: [0.15, 0.15, 0.15, 0.15, 0.15, 0.25]
+  probabilities_dist: [0.35, 0.15, 0.15, 0.15, 0.15, 0.1]
 player:
   verbose: false
   midi_port: "Disklavier"

@@ -23,7 +23,7 @@ scheduler:
 seeker:
   tag: "[yellow]seeker[/yellow]:"
   verbose: True
-  seed: ~
+  seed: -1 # -1 for random
   system: "live"
   mode: "best" # best easy repeat random sequential playlist graph
   match: "current" # current, next, prev, next 2, prev 2

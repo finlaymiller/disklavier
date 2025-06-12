@@ -92,9 +92,9 @@ class Runner(QtCore.QThread):
             self.params.metronome, self.params.bpm, self.td_system_start
         )
 
-        console.log(f"{self.tag} initialization complete")
         if self.args.verbose:
             console.log(f"{self.tag} settings:\n{self.__dict__}")
+        console.log(f"{self.tag} initialization complete")
 
     def run(self):
         # --- find match ---
@@ -254,7 +254,7 @@ class Runner(QtCore.QThread):
                             )
 
                 # --- player tracking ---
-                if self.params.player_tracking:
+                if self.params.player_tracking is not None:
                     ts_current_elapsed = (
                         datetime.now() - self.td_playback_start
                     ).total_seconds()
@@ -540,35 +540,46 @@ class Runner(QtCore.QThread):
                 os.remove(pf_temp_player_segment)
 
         # --- check embedding diff ---
-        if self.previous_player_embedding is not None:
-            embedding_diff = current_player_embedding - self.previous_player_embedding
-            diff_magnitude = np.linalg.norm(embedding_diff)
-            if self.args.verbose:
-                console.log(
-                    f"{self.tag} player embedding diff magnitude: {diff_magnitude:.4f} (threshold is: {self.player_embedding_diff_threshold:.4f})"
-                )
+        match self.params.player_tracking:
+            case "threshold":
+                if self.previous_player_embedding is not None:
+                    embedding_diff = current_player_embedding - self.previous_player_embedding
+                    diff_magnitude = np.linalg.norm(embedding_diff)
+                    if self.args.verbose:
+                        console.log(
+                            f"{self.tag} player embedding diff magnitude: {diff_magnitude:.4f} (threshold is: {self.player_embedding_diff_threshold:.4f})"
+                        )
 
-            if diff_magnitude > self.player_embedding_diff_threshold:
+                    if diff_magnitude > self.player_embedding_diff_threshold:
+                        console.log(
+                            f"{self.tag} [chartreuse2 bold]embedding diff threshold exceeded ({diff_magnitude:.4f} > {self.player_embedding_diff_threshold}). adjusting trajectory..."
+                        )
+                        try:
+                            # self._adjust_playback_trajectory(embedding_diff)
+                            console.log(
+                                f"{self.tag} sending embedding to seeker ({embedding_diff.shape})"
+                            )
+                            self.staff.seeker.offset_embedding = embedding_diff
+                        except Exception as e:
+                            console.print_exception(show_locals=True)
+                            console.log(
+                                f"{self.tag} [red]Error adjusting playback trajectory: {e}"
+                            )
+                            # reset cutoff just in case it was set before error
+                            self.playback_cutoff_tick = float("inf")
+                else:
+                    if self.args.verbose:
+                        console.log(
+                            f"{self.tag} first player embedding calculated, storing for next check."
+                        )
+            case "waverage":
                 console.log(
-                    f"{self.tag} [chartreuse2 bold]embedding diff threshold exceeded ({diff_magnitude:.4f} > {self.player_embedding_diff_threshold}). adjusting trajectory..."
+                    f"{self.tag} sending embedding to seeker ({current_player_embedding.shape})"
                 )
-                try:
-                    # self._adjust_playback_trajectory(embedding_diff)
-                    console.log(
-                        f"{self.tag} sending embedding to seeker ({embedding_diff.shape})"
-                    )
-                    self.staff.seeker.offset_embedding = embedding_diff
-                except Exception as e:
-                    console.print_exception(show_locals=True)
-                    console.log(
-                        f"{self.tag} [red]Error adjusting playback trajectory: {e}"
-                    )
-                    # reset cutoff just in case it was set before error
-                    self.playback_cutoff_tick = float("inf")
-        else:
-            if self.args.verbose:
+                self.staff.seeker.offset_embedding = current_player_embedding
+            case _:
                 console.log(
-                    f"{self.tag} first player embedding calculated, storing for next check."
+                    f"{self.tag} [yellow]Player tracking mode '{self.params.player_tracking}' not supported. Skipping embedding check."
                 )
 
         self.previous_player_embedding = current_player_embedding
@@ -1113,8 +1124,8 @@ class Runner(QtCore.QThread):
         current_status = self.staff.scheduler.get_current_file()
         if current_status is not None and self.playing_file != current_status[0]:
             self.playing_file = current_status[0]
-            console.log(f"{self.tag} now playing '{self.playing_file}'")
-            self.s_status.emit(f"now playing '{self.playing_file}'")
+            console.log(f"{self.tag} playing '{self.playing_file}'")
+            self.s_status.emit(f"Playing <i>{self.playing_file}</i>")
             num_files_remaining = self.params.n_transitions - current_status[1]
             self.s_segments_remaining.emit(num_files_remaining)
 

@@ -34,7 +34,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.recording_offset = 0  # seconds
 
         QtWidgets.QMainWindow.__init__(self)
-        self.setWindowTitle("disklavier")
+        self.setWindowTitle("Disklavier")
 
         # toolbar
         self.toolbar = QtWidgets.QToolBar("Time Toolbar")
@@ -66,7 +66,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # window dimensions
         geometry = self.screen().availableGeometry()
         self.setMinimumSize(800, 600)
-        self.resize(int(geometry.width() * 0.8), int(geometry.height() * 0.8))
+        self.resize(int(geometry.width() * 0.9), int(geometry.height() * 0.9))
 
         # update status with parameter file path
         param_path = os.path.join(os.getcwd(), "params", f"{self.args.params}.yaml")
@@ -74,51 +74,35 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status_label.setText(f"parameter file editor")
 
     def _build_toolbar(self):
-        # create velocity label (left side)
-        self.velocity_label = QtWidgets.QLabel("Velocity: ----")
+        # trackers
+        ## velocity
+        self.velocity_label = QtWidgets.QLabel("Velocity Tracking: ----")
         self.velocity_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
-        self.velocity_label.setMinimumWidth(120)
-        font = self.velocity_label.font()
-        font.setPointSize(font.pointSize() + 1)
-        self.velocity_label.setFont(font)
+        self.velocity_label.setMinimumWidth(130)
         self.toolbar.addWidget(self.velocity_label)
-
-        # create segments label (after velocity)
-        self.segments_label = QtWidgets.QLabel("Segments Left: ----")
-        self.segments_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
-        self.segments_label.setMinimumWidth(150)
-        self.segments_label.setFont(font)
-        self.toolbar.addWidget(self.segments_label)
-
-        # create status label (middle)
-        self.status_label = QtWidgets.QLabel("Initializing...")
-        self.status_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.status_label.setMinimumWidth(300)
-        self._update_status_style("Initializing...")
-        status_font = self.status_label.font()
-        status_font.setPointSize(status_font.pointSize() + 1)
-        status_font.setBold(True)
-        self.status_label.setFont(status_font)
-        self.toolbar.addWidget(self.status_label)
-
-        # create cc trackers
-        self.duet_sens_label = QtWidgets.QLabel("Duet Sensitivity: ----")
-        self.duet_sens_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-        self.duet_sens_label.setMinimumWidth(150)
-        self.duet_sens_label.setFont(font)
+        ## player embedding
+        self.duet_sens_label = QtWidgets.QLabel(
+            "Duet Sensitivity: <b><font color='grey'>0%</font></b> "
+        )
+        self.duet_sens_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
+        self.duet_sens_label.setMinimumWidth(130)
         self.toolbar.addWidget(self.duet_sens_label)
-        self.rhythm_sens_label = QtWidgets.QLabel("Rhythm Tracking: ----")
-        self.rhythm_sens_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-        self.rhythm_sens_label.setMinimumWidth(150)
-        self.rhythm_sens_label.setFont(font)
+        ## rhythm
+        self.rhythm_sens_label = QtWidgets.QLabel(
+            "Rhythm Tracking: <b><font color='yellow'>----</font></b> "
+        )
+        self.rhythm_sens_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
+        self.rhythm_sens_label.setMinimumWidth(130)
         self.toolbar.addWidget(self.rhythm_sens_label)
-        self.melody_sens_label = QtWidgets.QLabel("Melody Tracking: ----")
-        self.melody_sens_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-        self.melody_sens_label.setMinimumWidth(150)
-        self.melody_sens_label.setFont(font)
+        ## melody
+        self.melody_sens_label = QtWidgets.QLabel(
+            "Melody Tracking: <b><font color='light blue'>----</font></b> "
+        )
+        self.melody_sens_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
+        self.melody_sens_label.setMinimumWidth(130)
         self.toolbar.addWidget(self.melody_sens_label)
 
-        # add spacer between status and time
+        # spacer
         spacer = QtWidgets.QWidget()
         spacer.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding,
@@ -126,7 +110,33 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         self.toolbar.addWidget(spacer)
 
-        # create time label (right side)
+        # status + playing segment name
+        self.status_label = QtWidgets.QLabel("Initializing...")
+        self.status_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.status_label.setMinimumWidth(300)
+        self._update_status_style("Initializing...")
+        # status_font = self.status_label.font()
+        # status_font.setPointSize(status_font.pointSize() + 1)
+        # status_font.setBold(True)
+        # self.status_label.setFont(status_font)
+        self.toolbar.addWidget(self.status_label)
+
+        # spacer
+        spacer = QtWidgets.QWidget()
+        spacer.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding,
+        )
+        self.toolbar.addWidget(spacer)
+
+        # segments remaining
+        self.segments_label = QtWidgets.QLabel("Segments Remaining: ----")
+        self.segments_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        self.segments_label.setMinimumWidth(150)
+        # self.segments_label.setFont(font)
+        self.toolbar.addWidget(self.segments_label)
+
+        # runtime
         self.time_label = QtWidgets.QLabel()
         self.time_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         self.time_label.setMinimumWidth(100)
@@ -149,14 +159,16 @@ class MainWindow(QtWidgets.QMainWindow):
         unnecessary updates and checks.
         """
         runtime = datetime.now() - self.td_system_start
-        runtime_text = f"{runtime.seconds//3600:02d}:{(runtime.seconds//60)%60:02d}:{runtime.seconds%60:02d}"
+        runtime_text = f"{runtime.seconds//3600:02d}:{(runtime.seconds//60)%60:02d}:{runtime.seconds%60:02d}  "
         self.time_label.setText(runtime_text)
 
         # update velocity display
         # TODO: use the same method as the values below
         if hasattr(self, "workers") and hasattr(self.workers, "midi_recorder"):
             avg_vel = self.workers.midi_recorder.avg_velocity
-            if avg_vel < 30:
+            if avg_vel == 0:
+                color = "grey"
+            elif avg_vel < 30:
                 color = "light blue"
             elif avg_vel < 60:
                 color = "yellow"
@@ -166,7 +178,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 color = "red"
 
             self.velocity_label.setText(
-                f"Velocity: <b><font color='{color}'>{int(100 * avg_vel / constants.MAX_VEL)}%</font></b>"
+                f"Velocity Factor: <b><font color='{color}'>{int(100 * avg_vel / constants.MAX_VEL)}%</font></b>"
             )
 
         # update player follow threshold
@@ -406,7 +418,7 @@ class MainWindow(QtWidgets.QMainWindow):
         remaining_count : int
             number of segments left to play.
         """
-        self.segments_label.setText(f"Segments Left: {remaining_count}")
+        self.segments_label.setText(f"Segments Remaining: {remaining_count}  ")
 
     def update_status(self, message: str):
         """
@@ -417,7 +429,7 @@ class MainWindow(QtWidgets.QMainWindow):
         message : str
             status message to display.
         """
-        self.status.showMessage(message)
+        # self.status.showMessage(message)
         self._update_status_style(message)
 
     def _update_status_style(self, message: str):
@@ -425,11 +437,8 @@ class MainWindow(QtWidgets.QMainWindow):
         style = "border-radius: 4px; padding: 2px 8px;"
 
         # check if message matches the pattern "now playing 'x_y_tNNsNN'"
-        if (
-            not self.params.seeker.block_shift
-            and "now playing" in message
-            and "s" in message
-        ):
+        # TODO: update to not require the presence of the 'now playing' string
+        if not self.params.seeker.block_shift and "s" in message:
             try:
                 # extract the number after 's'
                 s_index = message.rindex("s")

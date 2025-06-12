@@ -11,7 +11,7 @@ class Worker:
         self.bpm = bpm
         self.tempo = bpm2tempo(self.bpm)
 
-    def run(self):
+    def run(self, *args, **kwargs):
         raise NotImplementedError("Worker must implement run method")
 
     def reset(self):
