@@ -69,6 +69,13 @@ class ParameterEditorWidget(QtWidgets.QWidget):
                 "regular",
                 "inverted",
             ],
+            "player_tracking": [
+                None,
+                "threshold",
+                "threshold (transposed)",
+                "weighted average",
+                "weighted average (transposed)",
+            ],
         }
 
         self.params = params
@@ -88,8 +95,8 @@ class ParameterEditorWidget(QtWidgets.QWidget):
             blocked_params.append("min_adjustment")
             blocked_params.append("max_adjustment")
             blocked_params.append("cc_number")
-            blocked_params.append("min_threshold")
-            blocked_params.append("max_threshold")
+            blocked_params.append("min")
+            blocked_params.append("max")
             blocked_params.append("middle_c_note_number")
 
         self.init_ui()

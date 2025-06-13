@@ -21,8 +21,8 @@ class MidiControlListener:
 
     def __init__(
         self,
-        app_params,
-        run_worker_ref,
+        params,
+        runner_ref,
         player_ref,
     ):
         """
@@ -30,22 +30,22 @@ class MidiControlListener:
 
         parameters
         ----------
-        app_params : OmegaConf
+        params : OmegaConf
             the main application configuration object.
-        run_worker_ref : Runner
+        runner_ref : Runner
             a reference to the main runner instance.
         player_ref : Player
             a reference to the player instance.
         """
-        self.params = app_params
-        self.run_worker_ref = run_worker_ref
+        self.params = params
+        self.runner_ref = runner_ref
         self.player_ref = player_ref
 
         # --- print configs ---
         console.log(self.params)
         if self.params.cc_listener.enable:
             console.log(
-                f"{self.tag} CC listener config:\n\t\tPort='{self.params.cc_listener.port_name}',\tCC#={self.params.cc_listener.cc_number},\n\t\tMinThresh={self.params.cc_listener.min_threshold},\tMaxThresh={self.params.cc_listener.max_threshold}"
+                f"{self.tag} CC listener config:\n\t\tPort='{self.params.cc_listener.port_name}',\tCC#={self.params.cc_listener.cc_number},\n\t\tMin={self.params.cc_listener.min},\tMax={self.params.cc_listener.max},\tNormalize={self.params.cc_listener.normalize}"
             )
         else:
             console.log(f"{self.tag} CC listener is disabled.")
@@ -150,26 +150,23 @@ class MidiControlListener:
                         msg.type == "control_change"
                         and msg.control == self.params.cc_listener.cc_number
                     ):
-                        cc_value = msg.value
-                        if cc_value == 127:
-                            new_threshold = np.inf
-                        else:
-                            divisor = 126.0
-                            mapped_value = cc_value / divisor if divisor > 0 else 0
-                            new_threshold = (
-                                self.params.cc_listener.min_threshold
-                                + (
-                                    self.params.cc_listener.max_threshold
-                                    - self.params.cc_listener.min_threshold
-                                )
-                                * mapped_value
+                        mapped_value = msg.value / 127
+                        new_threshold = (
+                            self.params.cc_listener.min
+                            + (
+                                self.params.cc_listener.max
+                                - self.params.cc_listener.min
                             )
-                            new_threshold = round(new_threshold, 2)
+                            * mapped_value
+                        )
+                        new_threshold = round(new_threshold, 2)
 
-                        self.run_worker_ref.update_duet_sensitivity(new_threshold)
+                        if self.params.cc_listener.normalize:
+                            new_threshold /= self.params.cc_listener.max
+                        self.runner_ref.update_duet_sensitivity(new_threshold)
 
                         console.log(
-                            f"{self.tag} player_embedding_diff_threshold set to {new_threshold} (cc value: {cc_value})"
+                            f"{self.tag} player_embedding_diff_threshold set to {new_threshold} (cc value: {msg.value})"
                         )
 
                 time.sleep(0.01)
@@ -289,7 +286,7 @@ class MidiControlListener:
             return
 
         # --- get current histogram ---
-        current_file = self.run_worker_ref.staff.scheduler.get_current_file()
+        current_file = self.runner_ref.staff.scheduler.get_current_file()
         if current_file is None:
             console.log(
                 f"{self.tag} [red]no current file. chord listener will not start.[/red]"

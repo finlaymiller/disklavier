@@ -2,21 +2,17 @@ import os
 import math
 import mido
 import time
-import mido
+import numpy as np
 import pretty_midi
 from PySide6 import QtCore
 from threading import Thread
 from rich.table import Table
 from queue import PriorityQueue
 from datetime import datetime, timedelta
-import numpy as np
-import mido
-import uuid
 
 import workers
 from workers import Staff
-from utils import basename, console, midi, write_log, panther
-from utils.midi import TICKS_PER_BEAT, MidiAugmentationConfig
+from utils import basename, console, constants, midi, write_log, panther
 
 from typing import Optional
 
@@ -54,11 +50,13 @@ class Runner(QtCore.QThread):
 
     # player tracking
     player_embedding_diff_threshold: float = 3.0
+    player_embedding_weight: float = 0.0
     last_checked_beat: float = 0.0
     previous_player_embedding: Optional[np.ndarray] = None
     playback_cutoff_tick: float = float("inf")
     player_segment_beat_interval: int = 8
     adjustment_lookahead_s: float = 3.0
+    num_segments_recorded: int = 0
 
     def __init__(self, main_window):
         super().__init__()
@@ -69,7 +67,7 @@ class Runner(QtCore.QThread):
         self.td_system_start = main_window.td_system_start
         self.tempo = mido.bpm2tempo(self.params.bpm)
         self.player_segment_tick_interval = (
-            self.player_segment_beat_interval * TICKS_PER_BEAT
+            self.player_segment_beat_interval * constants.TICKS_PER_BEAT
         )
 
         self.staff.seeker.s_embedding_calculated.connect(self.s_embedding_processed)
@@ -115,7 +113,7 @@ class Runner(QtCore.QThread):
                 self.pf_seed = self.pf_player_query
 
                 # augment
-                aug_config = MidiAugmentationConfig(
+                aug_config = midi.MidiAugmentationConfig(
                     rearrange=self.params.augmentation.rearrange,
                     remove_percentage=self.params.augmentation.remove,
                     target_notes_remaining=self.params.augmentation.target_notes_remaining,
@@ -157,13 +155,10 @@ class Runner(QtCore.QThread):
             raise NotImplementedError("playlist mode not implemented")
 
         try:
-            # Get current time and add startup delay
+            # start on even seconds for easier debugging
             current_time = datetime.now()
-            # Round up to the next even second
             current_seconds = current_time.second + current_time.microsecond / 1000000
             seconds_to_next_even = math.ceil(current_seconds / 2) * 2 - current_seconds
-
-            # Add the startup delay and the time to next even second
             self.td_playback_start = current_time + timedelta(
                 seconds=self.params.startup_delay + seconds_to_next_even
             )
@@ -172,10 +167,7 @@ class Runner(QtCore.QThread):
             )
             self.s_start_time.emit(self.td_playback_start)
             self.staff.scheduler.set_start_time(self.td_playback_start)
-            self.staff.scheduler.init_schedule(
-                self.pf_schedule,
-                0,  # ts_recording_len if self.params.initialization == "recording" else 0,
-            )
+            self.staff.scheduler.init_schedule(self.pf_schedule, 0)
             console.log(f"{self.tag} successfully initialized recording")
 
             # add seed to queue
@@ -238,13 +230,13 @@ class Runner(QtCore.QThread):
                     tt_next_note = self.q_playback.queue[0][0]
                     remaining_ticks = max(0, self.tt_queue_end_tick - tt_next_note)
                     remaining_seconds = mido.tick2second(
-                        remaining_ticks, TICKS_PER_BEAT, self.tempo
+                        remaining_ticks, constants.TICKS_PER_BEAT, self.tempo
                     )
                 else:
                     pass
 
                 # add midi to buffer if needed
-                if remaining_seconds < self.params.startup_delay / 2:
+                if remaining_seconds < self.params.startup_delay:
                     if self.n_files_queued < self.params.n_transitions:
                         pf_next_file, similarity = self.staff.seeker.get_next()
                         self._queue_file(pf_next_file, similarity)
@@ -468,7 +460,7 @@ class Runner(QtCore.QThread):
 
         # check if enough ticks were actually collected
         console.log(
-            f"{self.tag} accumulated_ticks: {accumulated_ticks} ({mido.tick2second(accumulated_ticks, TICKS_PER_BEAT, self.tempo):.2f}s)"
+            f"{self.tag} accumulated_ticks: {accumulated_ticks} ({mido.tick2second(accumulated_ticks, constants.TICKS_PER_BEAT, self.tempo):.2f}s)"
         )
         if accumulated_ticks < self.player_segment_tick_interval:
             if self.args.verbose:
@@ -481,31 +473,27 @@ class Runner(QtCore.QThread):
         segment_notes.reverse()
 
         # create MIDI file
-        midi_segment = mido.MidiFile(ticks_per_beat=TICKS_PER_BEAT)
+        midi_segment = mido.MidiFile(ticks_per_beat=constants.TICKS_PER_BEAT)
         track = mido.MidiTrack()
         midi_segment.tracks.append(track)
         track.append(mido.MetaMessage("set_tempo", tempo=self.tempo, time=0))
-        # midi_segment.print_tracks()
 
         # add notes, adjusting time of the first note
         if segment_notes:
-            first_note_time = segment_notes[0].time  # store original delta time
-            track.append(segment_notes[0].copy(time=0))  # first note starts at time 0
-            # add subsequent notes with their original delta times
+            track.append(segment_notes[0].copy(time=0))
             for i in range(1, len(segment_notes)):
                 track.append(segment_notes[i])
-        # midi_segment.print_tracks()
 
         # save to temporary file
-        uuid_str = str(uuid.uuid1()).split("-")[0]
-        temp_filename = f"player_segment-{self.params.bpm}-{uuid_str}.mid"
+        temp_filename = f"player_segment-{self.num_segments_recorded:03d}.mid"
         pf_temp_player_segment = os.path.join(self.p_log, temp_filename)
+        self.num_segments_recorded += 1
         try:
             midi_segment.save(pf_temp_player_segment)
 
             if self.args.verbose:
                 console.log(
-                    f"{self.tag} saved temporary player segment: {pf_temp_player_segment}"
+                    f"{self.tag} saved temporary player segment: '{pf_temp_player_segment}'"
                 )
                 console.log(
                     f"{self.tag} segment has length {pretty_midi.PrettyMIDI(pf_temp_player_segment).get_end_time():.2f} seconds"
@@ -523,6 +511,58 @@ class Runner(QtCore.QThread):
         if pf_temp_player_segment is None:
             return
 
+        # transpose player segment to match system segment
+        if "transpose" in self.params.player_tracking:
+            # -2 because one file has been queued since the embedding was made
+            # TODO: do this properly with time tracking
+            pf_system_file = (
+                os.path.join(
+                    self.staff.seeker.p_dataset, self.staff.scheduler.queued_files[-2]
+                )
+                + ".mid"
+            )
+            system_hist = midi.get_pitch_histogram(pf_system_file)
+            player_hist = midi.get_pitch_histogram(pf_temp_player_segment)
+
+            best_offset = 0
+            min_kl = float("inf")
+            offset_range = range(
+                -constants.MAX_TRANSPOSE,
+                constants.MAX_TRANSPOSE + 1,
+            )  # +/- 2 octaves
+            for offset in offset_range:
+                transposed_hist = midi.shift_histogram(player_hist, offset)
+                kl_divergence = midi.calculate_kl_divergence(
+                    system_hist, transposed_hist
+                )
+                console.log(
+                    f"{self.tag} kl divergence: {kl_divergence:.4f} (offset: {offset})"
+                )
+                if kl_divergence < min_kl:
+                    min_kl = kl_divergence
+                    best_offset = offset
+            console.log(f"{self.tag} best offset: {best_offset} w/kld {min_kl:.4f}")
+
+            # save transposed file
+            segment_parts = basename(pf_temp_player_segment).split("-")
+            temp_filename = f"{segment_parts[0]}-{segment_parts[1]}-{'u' if best_offset > 0 else 'd'}{abs(best_offset):02d}.mid"
+            pf_transposed_player_segment = os.path.join(self.p_log, temp_filename)
+            console.log(f"{self.tag} parts: {segment_parts}")
+            console.log(f"{self.tag} temp_filename: {temp_filename}")
+            console.log(
+                f"{self.tag} saving transposed player segment: '{pf_transposed_player_segment}'"
+            )
+            midi.transpose_midi(
+                pf_temp_player_segment, pf_transposed_player_segment, best_offset
+            )
+            if os.path.exists(pf_transposed_player_segment):
+                pf_temp_player_segment = pf_transposed_player_segment
+            else:
+                console.log(
+                    f"{self.tag} [orange3]failed to save transposed player segment: {pf_transposed_player_segment}"
+                )
+                console.log(f"{self.tag} using original player segment")
+
         # --- get current embedding ---
         try:
             current_player_embedding = panther.send_embedding(
@@ -532,18 +572,23 @@ class Runner(QtCore.QThread):
             )
         except Exception as e:
             console.log(f"{self.tag} [red]error getting player embedding: {e}")
-            os.remove(pf_temp_player_segment)  # clean up temp file
             return
-        finally:
-            # ensure temp file is deleted even if panther fails
-            if os.path.exists(pf_temp_player_segment):
-                os.remove(pf_temp_player_segment)
 
         # --- check embedding diff ---
+        console.log(
+            f"{self.tag} got embedding at {datetime.now().strftime('%H:%M:%S')}"
+        )
+        console.log(f"{self.tag} {self.staff.scheduler.queued_files}")
+        console.log(f"{self.tag} {self.staff.scheduler.previous_track_name}")
+        console.log(
+            f"{self.tag} {[(self.td_playback_start + timedelta(seconds=t[0])).strftime('%H:%M:%S') for t in self.staff.scheduler.ts_transitions]}"
+        )
         match self.params.player_tracking:
             case "threshold":
                 if self.previous_player_embedding is not None:
-                    embedding_diff = current_player_embedding - self.previous_player_embedding
+                    embedding_diff = (
+                        current_player_embedding - self.previous_player_embedding
+                    )
                     diff_magnitude = np.linalg.norm(embedding_diff)
                     if self.args.verbose:
                         console.log(
@@ -555,6 +600,7 @@ class Runner(QtCore.QThread):
                             f"{self.tag} [chartreuse2 bold]embedding diff threshold exceeded ({diff_magnitude:.4f} > {self.player_embedding_diff_threshold}). adjusting trajectory..."
                         )
                         try:
+                            # this is disabled but left in case we want to implement a similar functionality
                             # self._adjust_playback_trajectory(embedding_diff)
                             console.log(
                                 f"{self.tag} sending embedding to seeker ({embedding_diff.shape})"
@@ -572,14 +618,46 @@ class Runner(QtCore.QThread):
                         console.log(
                             f"{self.tag} first player embedding calculated, storing for next check."
                         )
-            case "waverage":
+            case "threshold (transposed)":
+                if self.previous_player_embedding is not None:
+                    embedding_diff = (
+                        current_player_embedding - self.previous_player_embedding
+                    )
+                    diff_magnitude = np.linalg.norm(embedding_diff)
+                    if self.args.verbose:
+                        console.log(
+                            f"{self.tag} player embedding diff magnitude: {diff_magnitude:.4f} (threshold is: {self.player_embedding_diff_threshold:.4f})"
+                        )
+
+                    if diff_magnitude > self.player_embedding_diff_threshold:
+                        console.log(
+                            f"{self.tag} [chartreuse2 bold]embedding diff threshold exceeded ({diff_magnitude:.4f} > {self.player_embedding_diff_threshold}). adjusting trajectory..."
+                        )
+                        try:
+                            console.log(
+                                f"{self.tag} sending embedding to seeker ({embedding_diff.shape})"
+                            )
+                            self.staff.seeker.offset_embedding = embedding_diff
+                        except Exception as e:
+                            console.print_exception(show_locals=True)
+                            console.log(
+                                f"{self.tag} [red]Error adjusting playback trajectory: {e}"
+                            )
+                            # reset cutoff just in case it was set before error
+                            self.playback_cutoff_tick = float("inf")
+                else:
+                    if self.args.verbose:
+                        console.log(
+                            f"{self.tag} first player embedding calculated, storing for next check."
+                        )
+            case "weighted average":
                 console.log(
                     f"{self.tag} sending embedding to seeker ({current_player_embedding.shape})"
                 )
                 self.staff.seeker.offset_embedding = current_player_embedding
             case _:
                 console.log(
-                    f"{self.tag} [yellow]Player tracking mode '{self.params.player_tracking}' not supported. Skipping embedding check."
+                    f"{self.tag} [yellow]player tracking mode '{self.params.player_tracking}' not supported. skipping embedding check."
                 )
 
         self.previous_player_embedding = current_player_embedding
@@ -748,7 +826,9 @@ class Runner(QtCore.QThread):
             f"{self.tag} queue time is now {remaining_seconds_log:.01f} seconds (end tick: {self.tt_queue_end_tick})"
         )
 
-    def augment_midi(self, pf_midi: str, config: MidiAugmentationConfig) -> list[str]:
+    def augment_midi(
+        self, pf_midi: str, config: midi.MidiAugmentationConfig
+    ) -> list[str]:
         """
         augment a midi file based on the provided configuration.
 
@@ -795,7 +875,6 @@ class Runner(QtCore.QThread):
             ]
             for i, arrangement in enumerate(rearrangements):
                 console.log(f"{self.tag}\t\trearranging seed:\t{arrangement}")
-                # Ensure beat_join can handle potentially empty beats if `beats` dict is sparse
                 if (
                     not all(
                         idx in split_beats
@@ -803,11 +882,7 @@ class Runner(QtCore.QThread):
                         if idx < len(split_beats)
                     )
                     and len(arrangement) > 0
-                ):  # check if all arrangement ids are in split_beats
-                    # This check might be too strict or needs refinement based on how beat_join handles missing beat indices
-                    # For now, if an arrangement requests a beat index that doesn't exist (e.g. from remove_empty=True in beat_split),
-                    # it might cause issues or empty results.
-                    # A more robust beat_join or filtering of arrangements might be needed.
+                ):
                     console.log(
                         f"{self.tag}\t\tarrangement {arrangement} contains beat indices not found in split_beats (count: {len(split_beats)}), skipping rearrangement."
                     )

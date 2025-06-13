@@ -5,7 +5,7 @@ initialization: "recording" # kickstart random recording
 kickstart_path: "data/datasets/20250320/augmented/20240429-068-06_0084-0091_t10s03.mid"
 # kickstart_path: "data/datasets/20250320/augmented/20241229-094-10_0091-0096_t00s00.mid"
 # kickstart_path: "data/datasets/test/intervals-060-09_1_t00s00.mid" # path to midi or matches.json
-player_tracking: false
+player_tracking: ~
 augmentation:
   rearrange: ~
   remove: ~
@@ -75,8 +75,8 @@ midi_control:
     enable: false
     port_name: "USB Oxygen 8 v2" #"nanoKONTROL2 SLIDER/KNOB"
     cc_number: 72 # 23
-    min_threshold: 0.0
-    max_threshold: 8.0
+    min: 0.0
+    max: 5.0
   transpose_listener:
     enable: false
     port_name: "USB Oxygen 8 v2" #"LPK25"

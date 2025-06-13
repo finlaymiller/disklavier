@@ -115,10 +115,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.status_label.setMinimumWidth(300)
         self._update_status_style("Initializing...")
-        # status_font = self.status_label.font()
-        # status_font.setPointSize(status_font.pointSize() + 1)
-        # status_font.setBold(True)
-        # self.status_label.setFont(status_font)
         self.toolbar.addWidget(self.status_label)
 
         # spacer
@@ -133,7 +129,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.segments_label = QtWidgets.QLabel("Segments Remaining: ----")
         self.segments_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         self.segments_label.setMinimumWidth(150)
-        # self.segments_label.setFont(font)
         self.toolbar.addWidget(self.segments_label)
 
         # runtime
@@ -183,7 +178,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # update player follow threshold
         if duet_sens is not None:
-            max_sens = self.params.midi_control.cc_listener.max_threshold
+            max_sens = self.params.midi_control.cc_listener.max
             scaled_sens = int(100 * duet_sens / max_sens)
             if scaled_sens < 25:
                 color = "green"
@@ -304,9 +299,10 @@ class MainWindow(QtWidgets.QMainWindow):
             or self.params.midi_control.transpose_listener.enable
         ):
             console.log(f"{self.tag} initializing midi control listener...")
+            self.params.midi_control.cc_listener.normalize = "average" in self.params.player_tracking
             self.midi_listener = MidiControlListener(
-                app_params=self.params.midi_control,
-                run_worker_ref=None,
+                params=self.params.midi_control,
+                runner_ref=None,
                 player_ref=self.workers.player,
             )
         else:
@@ -398,7 +394,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # start MIDI listener if it was initialized and we have a run_thread
         if self.midi_listener is not None:
             console.log(f"{self.tag} starting midi control listener with run_thread...")
-            self.midi_listener.run_worker_ref = self.th_run
+            self.midi_listener.runner_ref = self.th_run
             self.midi_listener.start()
 
     def update_start_time(self, start_time):
