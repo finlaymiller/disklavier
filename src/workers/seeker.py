@@ -1101,7 +1101,7 @@ class Seeker(Worker, QtCore.QObject):
                 player_weight = 0.0
                 if hasattr(self, "runner_ref") and self.runner_ref is not None:
                     player_weight = getattr(
-                        self.runner_ref, "player_embedding_weight", 0.0
+                        self.runner_ref, "duet_sensitivity", 0.0
                     )
                 system_weight = 1.0 - player_weight
 
