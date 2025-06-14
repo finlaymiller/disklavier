@@ -4,7 +4,7 @@ kickstart_path: "data/datasets/20250420/augmented/20240429-068-06_0084-0091_t10s
 # kickstart_path: "data/datasets/20250420/augmented/20241229-094-10_0091-0096_t00s00.mid"
 # kickstart_path: "data/datasets/test/intervals-060-09_1_t00s00.mid"
 player_tracking: "threshold"
-player_tracking_weight: 1.0
+player_tracking_weight: 0
 augmentation:
   rearrange: True
   remove: 0.1
@@ -21,10 +21,10 @@ seeker:
   seed: 1277919
   system: "live"
   mode: "probabilities" # best easy repeat random sequential playlist graph probabilities
+  probabilities_dist: [0.35, 0.15, 0.15, 0.15, 0.15, 0.1]
   match: "current" # current, next, prev, next 2, prev 2
   metric: "specdiff" # pitch-histogram specdiff clf-4note clf-speed clf-tpose clamp
   block_shift: true
-  probabilities_dist: [0.35, 0.15, 0.15, 0.15, 0.15, 0.1]
 player:
   verbose: false
   midi_port: "Disklavier"
@@ -38,10 +38,11 @@ audio:
   verbose: True
   midi_port: "Disklavier"
 midi_control:
-  cc_listener:
+  duet_sensitivity:
     enable: true
-    port_name: "USB Oxygen 8 v2"
-    cc_number: 82
-  transpose_listener:
+    cc_number: 1 # used to be 82 but changed randomly?
+  volume:
+    enable: false
+    cc_number: 2
+  transpose:
     enable: true
-    port_name: "USB Oxygen 8 v2"

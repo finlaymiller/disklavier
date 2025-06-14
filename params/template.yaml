@@ -71,13 +71,19 @@ panther:
   port: 22
   remote_dir: "/home/finlay/disklavier/data/outputs/uploads"
 midi_control:
-  cc_listener:
+  duet_sensitivity:
     enable: false
     port_name: "USB Oxygen 8 v2" #"nanoKONTROL2 SLIDER/KNOB"
     cc_number: 72 # 23
     min: 0.0
     max: 5.0
-  transpose_listener:
+  volume:
+    enable: false
+    port_name: "USB Oxygen 8 v2"
+    cc_number: 2
+    min: 0.0
+    max: 1.25
+  transpose:
     enable: false
     port_name: "USB Oxygen 8 v2" #"LPK25"
     middle_c_note_number: 60

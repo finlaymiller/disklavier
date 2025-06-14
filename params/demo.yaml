@@ -37,10 +37,10 @@ audio:
   midi_port: "UM-2G Port 1"
   record: 64
 midi_control:
-  cc_listener:
+  duet_sensitivity:
     enable: true
     port_name: "USB Oxygen 8 v2"
     cc_number: 82
-  transpose_listener:
+  transpose:
     enable: true
     port_name: "USB Oxygen 8 v2"

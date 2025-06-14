@@ -178,8 +178,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # update player follow threshold
         if duet_sens is not None:
-            max_sens = self.params.midi_control.cc_listener.max
-            scaled_sens = int(100 * duet_sens / max_sens)
+            scaled_sens = int(100 * duet_sens)
             if scaled_sens < 25:
                 color = "green"
             elif scaled_sens < 50:
@@ -295,11 +294,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # --- initialize midi control listener(s) ---
         if (
-            self.params.midi_control.cc_listener.enable
-            or self.params.midi_control.transpose_listener.enable
+            self.params.midi_control.duet_sensitivity.enable
+            or self.params.midi_control.transpose.enable
         ):
             console.log(f"{self.tag} initializing midi control listener...")
-            self.params.midi_control.cc_listener.normalize = "average" in self.params.player_tracking
+            self.params.midi_control.duet_sensitivity.normalize = (
+                "average" in self.params.player_tracking
+            )
             self.midi_listener = MidiControlListener(
                 params=self.params.midi_control,
                 runner_ref=None,
@@ -324,6 +325,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         save parameters to yaml file and start the application
         """
+        self.params = params
         ts_start = self.td_system_start.strftime("%y%m%d-%H%M%S")
 
         # filesystem setup
@@ -334,7 +336,10 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         os.makedirs(self.p_log, exist_ok=True)
 
-        # create parameters file
+        # --- save parameter file to disk ---
+        # TODO: do the following in a better place/way
+        if "average" in self.params.player_tracking:
+            self.params.midi_control.duet_sensitivity.max = 1.0
         param_file = os.path.join(self.p_log, "parameters.yaml")
         try:
             with open(param_file, "w") as f:
@@ -522,8 +527,7 @@ class MainWindow(QtWidgets.QMainWindow):
             f"{self.tag} start button clicked. retrieving params and starting..."
         )
         updated_params = self.param_editor.get_updated_params()
-        self.params = updated_params
-        self.save_and_start(self.params)
+        self.save_and_start(updated_params)
 
     def stop_clicked(self):
         self.cleanup_workers()

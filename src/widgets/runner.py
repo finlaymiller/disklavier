@@ -49,8 +49,7 @@ class Runner(QtCore.QThread):
     q_gui = PriorityQueue()
 
     # player tracking
-    player_embedding_diff_threshold: float = 3.0
-    player_embedding_weight: float = 0.0
+    duet_sensitivity: float = 0.0
     last_checked_beat: float = 0.0
     previous_player_embedding: Optional[np.ndarray] = None
     playback_cutoff_tick: float = float("inf")
@@ -70,6 +69,8 @@ class Runner(QtCore.QThread):
             self.player_segment_beat_interval * constants.TICKS_PER_BEAT
         )
 
+        # pass self to seeker for weighted average mode
+        self.staff.seeker.runner_ref = self
         self.staff.seeker.s_embedding_calculated.connect(self.s_embedding_processed)
 
         # file paths
@@ -180,7 +181,7 @@ class Runner(QtCore.QThread):
             self.metronome.start()
 
             # start audio recording in a separate thread
-            # TODO: fix ~1-beat delay in audio recording startup
+            # TODO: move to very start of run
             self.e_audio_stop = self.staff.audio_recorder.start_recording(
                 self.td_playback_start
             )
@@ -232,17 +233,15 @@ class Runner(QtCore.QThread):
                     remaining_seconds = mido.tick2second(
                         remaining_ticks, constants.TICKS_PER_BEAT, self.tempo
                     )
-                else:
-                    pass
 
                 # add midi to buffer if needed
-                if remaining_seconds < self.params.startup_delay:
+                if remaining_seconds < self.params.startup_delay / 2:
                     if self.n_files_queued < self.params.n_transitions:
                         pf_next_file, similarity = self.staff.seeker.get_next()
                         self._queue_file(pf_next_file, similarity)
                         if self.args.verbose:
                             console.log(
-                                f"{self.tag}[italic] queue buffer low ({remaining_seconds:.1f}s), queued '{basename(pf_next_file)}'.[/italic]"
+                                f"{self.tag}[italic] queue buffer low ({remaining_seconds:.1f} s), queued '{basename(pf_next_file)}'.[/italic]"
                             )
 
                 # --- player tracking ---
@@ -276,7 +275,7 @@ class Runner(QtCore.QThread):
             if self.stop_requested:
                 console.log(f"{self.tag}\tstop was requested.")
 
-            # Wait for player thread to finish naturally if it hasn't already
+            # wait for player thread to finish naturally if it hasn't already
             if self.th_player.is_alive():
                 console.log(f"{self.tag}\twaiting for player thread to finish...")
                 self.th_player.join(timeout=0.1)
@@ -511,7 +510,7 @@ class Runner(QtCore.QThread):
         if pf_temp_player_segment is None:
             return
 
-        # transpose player segment to match system segment
+        # --- transpose player segment to match system segment ---
         if "transpose" in self.params.player_tracking:
             # -2 because one file has been queued since the embedding was made
             # TODO: do this properly with time tracking
@@ -536,7 +535,7 @@ class Runner(QtCore.QThread):
                     system_hist, transposed_hist
                 )
                 console.log(
-                    f"{self.tag} kl divergence: {kl_divergence:.4f} (offset: {offset})"
+                    f"{self.tag} \t\t offset: {offset:02d} -> divergence {kl_divergence:.4f}"
                 )
                 if kl_divergence < min_kl:
                     min_kl = kl_divergence
@@ -544,11 +543,10 @@ class Runner(QtCore.QThread):
             console.log(f"{self.tag} best offset: {best_offset} w/kld {min_kl:.4f}")
 
             # save transposed file
+            # bpm must be included so that panther can parse it correctly
             segment_parts = basename(pf_temp_player_segment).split("-")
-            temp_filename = f"{segment_parts[0]}-{segment_parts[1]}-{'u' if best_offset > 0 else 'd'}{abs(best_offset):02d}.mid"
+            temp_filename = f"{segment_parts[0]}-{self.params.bpm}-{segment_parts[1]}-{'u' if best_offset > 0 else 'd'}{abs(best_offset):02d}.mid"
             pf_transposed_player_segment = os.path.join(self.p_log, temp_filename)
-            console.log(f"{self.tag} parts: {segment_parts}")
-            console.log(f"{self.tag} temp_filename: {temp_filename}")
             console.log(
                 f"{self.tag} saving transposed player segment: '{pf_transposed_player_segment}'"
             )
@@ -575,14 +573,6 @@ class Runner(QtCore.QThread):
             return
 
         # --- check embedding diff ---
-        console.log(
-            f"{self.tag} got embedding at {datetime.now().strftime('%H:%M:%S')}"
-        )
-        console.log(f"{self.tag} {self.staff.scheduler.queued_files}")
-        console.log(f"{self.tag} {self.staff.scheduler.previous_track_name}")
-        console.log(
-            f"{self.tag} {[(self.td_playback_start + timedelta(seconds=t[0])).strftime('%H:%M:%S') for t in self.staff.scheduler.ts_transitions]}"
-        )
         match self.params.player_tracking:
             case "threshold":
                 if self.previous_player_embedding is not None:
@@ -590,21 +580,25 @@ class Runner(QtCore.QThread):
                         current_player_embedding - self.previous_player_embedding
                     )
                     diff_magnitude = np.linalg.norm(embedding_diff)
+                    console.log(
+                        f"{self.tag} player embedding diff magnitude: {diff_magnitude:.4f}"
+                    )
+                    scaled_diff_magnitude = (
+                        diff_magnitude / self.params.midi_control.duet_sensitivity.max
+                    )
+
                     if self.args.verbose:
                         console.log(
-                            f"{self.tag} player embedding diff magnitude: {diff_magnitude:.4f} (threshold is: {self.player_embedding_diff_threshold:.4f})"
+                            f"{self.tag} player embedding diff magnitude: {scaled_diff_magnitude:.4f} (threshold is: {self.duet_sensitivity:.4f})"
                         )
 
-                    if diff_magnitude > self.player_embedding_diff_threshold:
+                    if scaled_diff_magnitude > 1.0 - self.duet_sensitivity:
                         console.log(
-                            f"{self.tag} [chartreuse2 bold]embedding diff threshold exceeded ({diff_magnitude:.4f} > {self.player_embedding_diff_threshold}). adjusting trajectory..."
+                            f"{self.tag} [cyan bold]embedding diff threshold exceeded ({scaled_diff_magnitude:.4f} > { 1.0 - self.duet_sensitivity}). adjusting trajectory..."
                         )
                         try:
                             # this is disabled but left in case we want to implement a similar functionality
                             # self._adjust_playback_trajectory(embedding_diff)
-                            console.log(
-                                f"{self.tag} sending embedding to seeker ({embedding_diff.shape})"
-                            )
                             self.staff.seeker.offset_embedding = embedding_diff
                         except Exception as e:
                             console.print_exception(show_locals=True)
@@ -624,14 +618,18 @@ class Runner(QtCore.QThread):
                         current_player_embedding - self.previous_player_embedding
                     )
                     diff_magnitude = np.linalg.norm(embedding_diff)
+                    scaled_diff_magnitude = (
+                        diff_magnitude / self.params.midi_control.duet_sensitivity.max
+                    )
+
                     if self.args.verbose:
                         console.log(
-                            f"{self.tag} player embedding diff magnitude: {diff_magnitude:.4f} (threshold is: {self.player_embedding_diff_threshold:.4f})"
+                            f"{self.tag} player embedding diff magnitude: {scaled_diff_magnitude:.4f} (threshold is: {self.duet_sensitivity:.4f})"
                         )
 
-                    if diff_magnitude > self.player_embedding_diff_threshold:
+                    if scaled_diff_magnitude < 1.0 - self.duet_sensitivity:
                         console.log(
-                            f"{self.tag} [chartreuse2 bold]embedding diff threshold exceeded ({diff_magnitude:.4f} > {self.player_embedding_diff_threshold}). adjusting trajectory..."
+                            f"{self.tag} [cyan bold]embedding diff threshold exceeded ({scaled_diff_magnitude:.4f} < {1.0 - self.duet_sensitivity}). adjusting trajectory..."
                         )
                         try:
                             console.log(
@@ -651,9 +649,7 @@ class Runner(QtCore.QThread):
                             f"{self.tag} first player embedding calculated, storing for next check."
                         )
             case "weighted average":
-                console.log(
-                    f"{self.tag} sending embedding to seeker ({current_player_embedding.shape})"
-                )
+                console.log(f"{self.tag} sending embedding to seeker")
                 self.staff.seeker.offset_embedding = current_player_embedding
             case _:
                 console.log(
@@ -1204,6 +1200,21 @@ class Runner(QtCore.QThread):
             num_files_remaining = self.params.n_transitions - current_status[1]
             self.s_segments_remaining.emit(num_files_remaining)
 
-    def update_duet_sensitivity(self, sensitivity: float):
-        self.player_embedding_diff_threshold = sensitivity
-        self.s_duet_sensitivity.emit(sensitivity)
+    def update_duet_sensitivity(self, sensitivity: int) -> None:
+        """
+        Update the duet sensitivity based on CC value.
+        knob all the way to the left (0) means no sensitivity, all the way to
+        the right (127) means high sensitivity. therefore, in threshold mode
+        the direction of change is inverted, i.e. instead of CW rotation of the
+        knob increasing the threshold, it decreases it
+
+        Parameters
+        ----------
+        sensitivity : int
+            The raw CC value [0, 127].
+        """
+        self.duet_sensitivity = sensitivity / 127.0
+
+        console.log(f"{self.tag} duet sensitivity set to {self.duet_sensitivity:.2f}")
+
+        self.s_duet_sensitivity.emit(self.duet_sensitivity)

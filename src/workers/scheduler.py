@@ -103,15 +103,19 @@ class Scheduler(Worker):
 
         self.previous_track_name = current_track_name
         self.ts_transitions[self.n_files_queued][1] = is_new_track_segment
-        latest_transitions = self.ts_transitions if len(self.ts_transitions) < 5 else self.ts_transitions[-5:]
-        console.log(latest_transitions)
-        console.log(
-            [
-                f"[{t[1]}] {t[0]:02.01f}  -> {self.td_start + timedelta(seconds=t[0]):%H:%M:%S.%f}"
-                for t in latest_transitions
-                # if self.td_start + timedelta(seconds=t[0]) < datetime.now() + timedelta(seconds=12)
-            ],
-        )
+        if self.verbose:
+            latest_transitions = (
+                self.ts_transitions
+                if len(self.ts_transitions) < 5
+                else self.ts_transitions[-5:]
+            )
+            console.log(
+                [
+                    f"[{t[1]}] {t[0]:02.01f}  -> {self.td_start + timedelta(seconds=t[0]):%H:%M:%S}"
+                    for t in latest_transitions
+                    # if self.td_start + timedelta(seconds=t[0]) < datetime.now() + timedelta(seconds=12)
+                ],
+            )
 
         tt_abs: int = tt_offset  # absolute time since system start
         tt_sum: int = 0  # time sum of all messages in the segment
@@ -151,9 +155,10 @@ class Scheduler(Worker):
                             f"{self.tag} [yellow]first file enqueued, but no valid notes with positive velocity to set average velocity.[/yellow]"
                         )
                 elif self.first_file_avg_velocity is not None:
-                    console.log(
-                        f"{self.tag} normalizing to target average velocity: {self.first_file_avg_velocity:.2f}. Original avg: {current_avg_velocity:.2f}"
-                    )
+                    if self.verbose:
+                        console.log(
+                            f"{self.tag} \tnormalizing to target average velocity: {self.first_file_avg_velocity:.2f}. Original avg: {current_avg_velocity:.2f}"
+                        )
 
                     # 1. clamp velocity to below max
                     for msg in note_on_messages:
@@ -174,7 +179,10 @@ class Scheduler(Worker):
                     scale_factor = (
                         self.first_file_avg_velocity / avg_velocity_after_clamp
                     )
-                    console.log(f"{self.tag} scaling velocity by {scale_factor:.2f}")
+                    if self.verbose:
+                        console.log(
+                            f"{self.tag} \tscaling velocity by {scale_factor:.2f}"
+                        )
                     for msg in note_on_messages:
                         new_velocity = int(round(msg.velocity * scale_factor))
                         msg.velocity = max(
@@ -183,9 +191,10 @@ class Scheduler(Worker):
 
                     final_velocities = [m.velocity for m in note_on_messages]
                     final_avg_vel = sum(final_velocities) / len(final_velocities)
-                    console.log(
-                        f"{self.tag} velocities normalized. avg after clamp: {avg_velocity_after_clamp:.2f}, final avg: {final_avg_vel:.2f}"
-                    )
+                    if self.verbose:
+                        console.log(
+                            f"{self.tag} \tvelocities normalized. avg after clamp: {avg_velocity_after_clamp:.2f}, final avg: {final_avg_vel:.2f}"
+                        )
             else:
                 console.log(
                     f"{self.tag} no note_on messages found in {basename(pf_midi)} for velocity normalization."
@@ -431,17 +440,17 @@ class Scheduler(Worker):
             return None
 
         # find which segment we're in
-        current_segment = 0
+        current_segment_idx = 0
         for i in range(1, len(self.ts_transitions)):
             if elapsed_seconds < self.ts_transitions[i][0]:
-                current_segment = i - 1
+                current_segment_idx = i - 1
                 break
             if i == len(self.ts_transitions) - 1:
-                current_segment = i
+                current_segment_idx = i
 
         # make sure we have enough files
-        if current_segment < len(self.queued_files):
-            return self.queued_files[current_segment], current_segment
+        if current_segment_idx < len(self.queued_files):
+            return self.queued_files[current_segment_idx], current_segment_idx
 
         return None
 

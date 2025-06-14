@@ -74,7 +74,6 @@ class ParameterEditorWidget(QtWidgets.QWidget):
                 "threshold",
                 "threshold (transposed)",
                 "weighted average",
-                "weighted average (transposed)",
             ],
         }
 

@@ -59,8 +59,9 @@ class AudioRecorder(Worker):
             recorded_data.append(indata.copy())
 
         # start the stream
-        console.log(f"{self.tag} initializing audio input stream with device 0:")
-        console.log(sd.query_devices())
+        if self.verbose:    
+            console.log(f"{self.tag} initializing audio input stream with device 0:")
+            console.log(sd.query_devices())
         with sd.InputStream(
             samplerate=self.params.sample_rate,
             channels=self.params.channels,

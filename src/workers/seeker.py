@@ -10,13 +10,16 @@ from scipy.spatial.distance import cosine
 from PySide6 import QtCore
 
 from workers.panther import Panther
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from .worker import Worker
 from utils import basename, console, panther
 from utils.modes import find_path
 
 from utils.constants import SUPPORTED_EXTENSIONS, EMBEDDING_SIZES
+
+if TYPE_CHECKING:
+    from widgets.runner import Runner
 
 
 class Seeker(Worker, QtCore.QObject):
@@ -33,7 +36,10 @@ class Seeker(Worker, QtCore.QObject):
     played_files: list[str] = []
     allow_multiple_plays = True
     pitch_match = False  # force pitch match
-    offset_embedding: np.ndarray | None = None
+    offset_embedding: Optional[np.ndarray] = None
+    runner_ref: Optional["Runner"] = (
+        None  # reference to runner for accessing player weight
+    )
 
     # probability distribution for probabilities mode
     probabilities_dist: list[float] = [1 / 6, 1 / 6, 1 / 6, 1 / 6, 1 / 6, 1 / 6]
@@ -64,6 +70,7 @@ class Seeker(Worker, QtCore.QObject):
         dataset_path: str,
         playlist_path: str,
         bpm: int,
+        runner_ref: Optional["Runner"] = None,
     ):
         QtCore.QObject.__init__(self)
         super().__init__(params, bpm=bpm)
@@ -76,6 +83,7 @@ class Seeker(Worker, QtCore.QObject):
         self.played_files = []
         self.current_path = []
         self.filename_to_index = {}
+        self.runner_ref = runner_ref
 
         # set seed randomly if not an integer
         if isinstance(self.params.seed, int) and self.params.seed >= 0:
@@ -110,9 +118,6 @@ class Seeker(Worker, QtCore.QObject):
             and params.probabilities_dist is not None
         ):
             self.probabilities_dist = list(params.probabilities_dist)
-        else:
-            # keep default if not in params
-            pass
 
         # validate and normalize probabilities_dist
         if not (
@@ -1072,9 +1077,9 @@ class Seeker(Worker, QtCore.QObject):
                 console.log(
                     f"{self.tag} added [dark_red bold]{query_file_key_with_aug}[/dark_red bold] to index"
                 )
-            else:
+            else:  # couldn't get embedding
                 metric_key = str(self.params.metric)
-                embedding_size = EMBEDDING_SIZES.get(metric_key, 512)
+                embedding_size = EMBEDDING_SIZES.get(metric_key, 768)
                 console.log(
                     f"{self.tag} [red]error: failed to calculate embedding for '{query_file_key_with_aug}' from '{final_path_for_calc_if_new}'. "
                     f"shape: {calculated_embedding.shape if calculated_embedding is not None else 'None'}. "
@@ -1087,16 +1092,41 @@ class Seeker(Worker, QtCore.QObject):
                 else:
                     embedding = np.zeros_like(embedding)
 
+        elif embedding.ndim != 2 or embedding.shape[0] != 1:
+            embedding = embedding.reshape(1, -1)
         # move embedding if player offset is present
-        if self.offset_embedding is not None:
-            # embedding += self.offset_embedding
-            embedding = (0.9 * embedding + 0.1 * self.offset_embedding) / 2
+        if self.offset_embedding is not None and embedding is not None:
+            if "average" in self.runner_ref.params.player_tracking:  # type: ignore
+                # get player weight from runner
+                player_weight = 0.0
+                if hasattr(self, "runner_ref") and self.runner_ref is not None:
+                    player_weight = getattr(
+                        self.runner_ref, "player_embedding_weight", 0.0
+                    )
+                system_weight = 1.0 - player_weight
+
+                # weighted average of system and player embeddings
+                embedding = (
+                    system_weight * embedding + player_weight * self.offset_embedding
+                )
+                # normalize the result
+                norm_val = np.linalg.norm(embedding, axis=1, keepdims=True)  # type: ignore
+                if norm_val > 1e-5:
+                    embedding /= norm_val
+
+                if self.verbose:
+                    console.log(
+                        f"{self.tag} weighted average of embeddings: system={system_weight:.2f}, player={player_weight:.2f}"
+                    )
+            else:
+                embedding += self.offset_embedding
 
             if self.verbose:
                 console.log(
                     f"{self.tag} added player offset to query embedding: {self.offset_embedding.shape}"
                 )
             self.offset_embedding = None
+
         query_embedding_np = np.array(embedding, dtype=np.float32).reshape(1, -1)
         indices, similarities = self._faiss_search(
             query_embedding_np, num_matches=num_matches

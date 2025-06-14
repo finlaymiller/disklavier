@@ -1,9 +1,13 @@
 import mido
 import time
-import threading
 import numpy as np
+from threading import Thread
 
+from widgets.runner import Runner
+from workers.player import Player
 from utils import console, midi
+
+from typing import Optional
 
 
 class MidiControlListener:
@@ -11,19 +15,21 @@ class MidiControlListener:
     listens for midi control changes and note events to control application parameters.
     """
 
-    tag = "[#00AADD]midicc[/#00AADD]:"
+    tag = "[#00AADD]midctl[/#00AADD]:"
 
     running = False
-    cc_thread = None
-    cc_input_port = None
-    transpose_thread = None
-    transpose_input_port = None
+    th_duet_sensitivity: Optional[Thread] = None
+    duet_sensitivity_port = None
+    th_volume: Optional[Thread] = None
+    volume_port = None
+    th_transpose: Optional[Thread] = None
+    transpose_port = None
 
     def __init__(
         self,
         params,
-        runner_ref,
-        player_ref,
+        runner_ref: Optional[Runner],
+        player_ref: Player,
     ):
         """
         initialize the midi control listener.
@@ -43,42 +49,47 @@ class MidiControlListener:
 
         # --- print configs ---
         console.log(self.params)
-        if self.params.cc_listener.enable:
+        if self.params.duet_sensitivity.enable:
             console.log(
-                f"{self.tag} CC listener config:\n\t\tPort='{self.params.cc_listener.port_name}',\tCC#={self.params.cc_listener.cc_number},\n\t\tMin={self.params.cc_listener.min},\tMax={self.params.cc_listener.max},\tNormalize={self.params.cc_listener.normalize}"
+                f"{self.tag} duet sensitivity listener config:\n\t\tPort='{self.params.duet_sensitivity.port_name}',\tCC#={self.params.duet_sensitivity.cc_number},\n\t\tMin={self.params.duet_sensitivity.min},\tMax={self.params.duet_sensitivity.max},\tNormalize={self.params.duet_sensitivity.normalize}"
             )
         else:
-            console.log(f"{self.tag} CC listener is disabled.")
-
-        if self.params.transpose_listener.enable:
+            console.log(f"{self.tag} duet sensitivity listener is disable.")
+        if self.params.volume.enable:
             console.log(
-                f"{self.tag} Transpose Listener Config:\n\t\tPort='{self.params.transpose_listener.port_name}',\tMiddleC={self.params.transpose_listener.middle_c_note_number}"
+                f"{self.tag} volume listener config:\n\t\tPort='{self.params.volume.port_name}',\tCC#={self.params.volume.cc_number},\n\t\tMin={self.params.volume.min},\tMax={self.params.volume.max}"
             )
         else:
-            console.log(f"{self.tag} Transpose Listener is disabled")
+            console.log(f"{self.tag} volume listener is disabled")
+        if self.params.transpose.enable:
+            console.log(
+                f"{self.tag} transpose listener config:\n\t\tPort='{self.params.transpose.port_name}',\tMiddleC={self.params.transpose.middle_c_note_number}"
+            )
+        else:
+            console.log(f"{self.tag} transpose listener is disabled")
 
     def start(self):
         """
         start the midi listening threads if they are enabled.
         """
         self.running = True
-        if self.params.cc_listener.enable:
-            if not self.cc_thread or not self.cc_thread.is_alive():
-                self.cc_thread = threading.Thread(
-                    target=self._listen_cc_input, daemon=True
+        if self.params.duet_sensitivity.enable:
+            if not self.th_duet_sensitivity or not self.th_duet_sensitivity.is_alive():
+                self.th_duet_sensitivity = Thread(
+                    target=self._listen_duet_sensitivity, daemon=True
                 )
-                self.cc_thread.start()
+                self.th_duet_sensitivity.start()
         else:
             console.log(
                 f"{self.tag} CC listener not starting as it is disabled in config."
             )
 
-        if self.params.transpose_listener.enable:
-            if not self.transpose_thread or not self.transpose_thread.is_alive():
-                self.transpose_thread = threading.Thread(
+        if self.params.transpose.enable:
+            if not self.th_transpose or not self.th_transpose.is_alive():
+                self.th_transpose = Thread(
                     target=self._listen_transpose_input, daemon=True
                 )
-                self.transpose_thread.start()
+                self.th_transpose.start()
         else:
             console.log(
                 f"{self.tag} Transpose listener not starting as it is disabled in config."
@@ -89,84 +100,78 @@ class MidiControlListener:
         stop the midi listening threads and release resources.
         """
         self.running = False
-        if self.cc_thread and self.cc_thread.is_alive():
-            self.cc_thread.join(timeout=1.0)
-            if self.cc_thread.is_alive():
+        if self.th_duet_sensitivity and self.th_duet_sensitivity.is_alive():
+            self.th_duet_sensitivity.join(timeout=1.0)
+            if self.th_duet_sensitivity.is_alive():
                 console.log(
                     f"{self.tag} [yellow]cc listener thread did not stop in time.[/yellow]"
                 )
 
-        if self.cc_input_port:
-            if not self.cc_input_port.closed:
-                self.cc_input_port.close()
+        if self.duet_sensitivity_port:
+            if not self.duet_sensitivity_port.closed:
+                self.duet_sensitivity_port.close()
                 console.log(
-                    f"{self.tag} closed cc midi port: {self.params.cc_listener.port_name}"
+                    f"{self.tag} closed cc midi port: {self.params.duet_sensitivity.port_name}"
                 )
-            self.cc_input_port = None
+            self.duet_sensitivity_port = None
 
-        if self.transpose_thread and self.transpose_thread.is_alive():
-            self.transpose_thread.join(timeout=1.0)
-            if self.transpose_thread.is_alive():
+        if self.th_transpose and self.th_transpose.is_alive():
+            self.th_transpose.join(timeout=1.0)
+            if self.th_transpose.is_alive():
                 console.log(
                     f"{self.tag} [yellow]transpose listener thread did not stop in time.[/yellow]"
                 )
 
-        if self.transpose_input_port:
-            if not self.transpose_input_port.closed:
-                self.transpose_input_port.close()
+        if self.transpose_port:
+            if not self.transpose_port.closed:
+                self.transpose_port.close()
                 console.log(
-                    f"{self.tag} closed transpose midi port: {self.params.transpose_listener.port_name}"
+                    f"{self.tag} closed transpose midi port: {self.params.transpose.port_name}"
                 )
-            self.transpose_input_port = None
+            self.transpose_port = None
 
-    def _listen_cc_input(self):
+    def _listen_duet_sensitivity(self):
         """
         continuously listen for control change messages on the specified midi port.
         this method is intended to be run in a separate thread.
         """
         # --- init connection ---
-        if not self.params.cc_listener.port_name:
+        if not self.params.duet_sensitivity.port_name:
             console.log(
                 f"{self.tag} [orange bold]cc port name not configured. cc listener will not run.[/orange bold]"
             )
             return
         try:
-            self.cc_input_port = mido.open_input(self.params.cc_listener.port_name)  # type: ignore
+            self.duet_sensitivity_port = mido.open_input(self.params.duet_sensitivity.port_name)  # type: ignore
             console.log(
-                f"{self.tag} listening for cc#{self.params.cc_listener.cc_number} on '{self.params.cc_listener.port_name}'"
+                f"{self.tag} listening for cc#{self.params.duet_sensitivity.cc_number} on '{self.params.duet_sensitivity.port_name}'"
             )
         except Exception as e:
             console.log(
-                f"{self.tag} [red]failed to open cc midi port '{self.params.cc_listener.port_name}': {e}. cc listener will not start.[/red]"
+                f"{self.tag} [red]failed to open cc midi port '{self.params.duet_sensitivity.port_name}': {e}. cc listener will not start.[/red]"
             )
-            self.cc_input_port = None
+            self.duet_sensitivity_port = None
             return
 
         while self.running:
             try:
                 # non-blocking check for messages
-                for msg in self.cc_input_port.iter_pending():
+                for msg in self.duet_sensitivity_port.iter_pending():
                     if (
                         msg.type == "control_change"
-                        and msg.control == self.params.cc_listener.cc_number
+                        and msg.control == self.params.duet_sensitivity.cc_number
                     ):
-                        mapped_value = msg.value / 127
-                        new_threshold = (
-                            self.params.cc_listener.min
-                            + (
-                                self.params.cc_listener.max
-                                - self.params.cc_listener.min
+                        if self.runner_ref is not None:
+                            self.runner_ref.update_duet_sensitivity(msg.value)
+
+                            console.log(f"{self.tag} sensitivity set to {msg.value}")
+                        else:
+                            console.log(
+                                f"{self.tag} [yellow italic]runner not found. cannot update duet sensitivity.[/yellow italic]"
                             )
-                            * mapped_value
-                        )
-                        new_threshold = round(new_threshold, 2)
-
-                        if self.params.cc_listener.normalize:
-                            new_threshold /= self.params.cc_listener.max
-                        self.runner_ref.update_duet_sensitivity(new_threshold)
-
+                    else:
                         console.log(
-                            f"{self.tag} player_embedding_diff_threshold set to {new_threshold} (cc value: {msg.value})"
+                            f"{self.tag} [yellow]received non-cc message: {msg}[/yellow]"
                         )
 
                 time.sleep(0.01)
@@ -176,19 +181,19 @@ class MidiControlListener:
 
                 if (
                     isinstance(e, (IOError, OSError))
-                    and self.cc_input_port
-                    and self.cc_input_port.closed
+                    and self.duet_sensitivity_port
+                    and self.duet_sensitivity_port.closed
                 ):
                     console.log(
-                        f"{self.tag} [red]cc midi port '{self.params.cc_listener.port_name}' appears closed. stopping listener.[/red]"
+                        f"{self.tag} [red]cc midi port '{self.params.duet_sensitivity.port_name}' appears closed. stopping listener.[/red]"
                     )
                     break
                 time.sleep(0.1)
 
-        if self.cc_input_port and not self.cc_input_port.closed:
-            self.cc_input_port.close()
+        if self.duet_sensitivity_port and not self.duet_sensitivity_port.closed:
+            self.duet_sensitivity_port.close()
         console.log(
-            f"{self.tag} stopped listening on cc port '{self.params.cc_listener.port_name}'"
+            f"{self.tag} stopped listening on cc port '{self.params.duet_sensitivity.port_name}'"
         )
 
     def _listen_transpose_input(self):
@@ -197,7 +202,7 @@ class MidiControlListener:
         this method is intended to be run in a separate thread.
         """
         # --- init connection ---
-        if not self.params.transpose_listener.port_name:
+        if not self.params.transpose.port_name:
             console.log(
                 f"{self.tag} [yellow]transpose port name not configured. transpose listener will not run.[/yellow]"
             )
@@ -208,27 +213,26 @@ class MidiControlListener:
             )
             return
         try:
-            self.transpose_input_port = mido.open_input(self.params.transpose_listener.port_name)  # type: ignore
+            self.transpose_port = mido.open_input(self.params.transpose.port_name)  # type: ignore
             console.log(
-                f"{self.tag} listening for transpose notes on '{self.params.transpose_listener.port_name}'"
+                f"{self.tag} listening for transpose notes on '{self.params.transpose.port_name}'"
             )
         except Exception as e:
             console.log(
-                f"{self.tag} [red]failed to open transpose midi port '{self.params.transpose_listener.port_name}': {e}. transpose listener will not start.[/red]"
+                f"{self.tag} [red]failed to open transpose midi port '{self.params.transpose.port_name}': {e}. transpose listener will not start.[/red]"
             )
-            self.transpose_input_port = None
+            self.transpose_port = None
             return
 
         while self.running:
-            if self.transpose_input_port is None:
+            if self.transpose_port is None:
                 break
             try:
-                for msg in self.transpose_input_port.iter_pending():
+                for msg in self.transpose_port.iter_pending():
                     if msg.type == "note_on" and msg.velocity > 0:
                         key_pressed = msg.note
                         transposition_interval = (
-                            key_pressed
-                            - self.params.transpose_listener.middle_c_note_number
+                            key_pressed - self.params.transpose.middle_c_note_number
                         )
                         self.player_ref.set_transposition(transposition_interval)
 
@@ -240,19 +244,19 @@ class MidiControlListener:
                     )
                 if (
                     isinstance(e, (IOError, OSError))
-                    and self.transpose_input_port
-                    and self.transpose_input_port.closed
+                    and self.transpose_port
+                    and self.transpose_port.closed
                 ):
                     console.log(
-                        f"{self.tag} [red]transpose midi port '{self.params.transpose_listener.port_name}' appears closed. stopping listener.[/red]"
+                        f"{self.tag} [red]transpose midi port '{self.params.transpose.port_name}' appears closed. stopping listener.[/red]"
                     )
                     break
                 time.sleep(0.1)
 
-        if self.transpose_input_port and not self.transpose_input_port.closed:
-            self.transpose_input_port.close()
+        if self.transpose_port and not self.transpose_port.closed:
+            self.transpose_port.close()
         console.log(
-            f"{self.tag} stopped listening on transpose port '{self.params.transpose_listener.port_name}'"
+            f"{self.tag} stopped listening on transpose port '{self.params.transpose.port_name}'"
         )
 
     def _listen_chord_input(self):
@@ -286,14 +290,18 @@ class MidiControlListener:
             return
 
         # --- get current histogram ---
-        current_file = self.runner_ref.staff.scheduler.get_current_file()
-        if current_file is None:
+        cf_result = None
+        if self.runner_ref is not None:
+            cf_result = self.runner_ref.staff.scheduler.get_current_file()
+        if cf_result is None:
             console.log(
                 f"{self.tag} [red]no current file. chord listener will not start.[/red]"
             )
             return
+        else:
+            current_file = cf_result[0]
         console.log(f"{self.tag} current file: {current_file}")
-        reference_hist = midi.get_pitch_histogram(current_file, False)
+        reference_hist = midi.get_pitch_histogram(current_file)
         console.log(f"{self.tag} reference histogram: {reference_hist}")
 
         # --- listen for chord notes ---

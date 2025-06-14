@@ -2,6 +2,8 @@ n_transitions: 8
 initialization: "random" # kickstart random recording
 kickstart_path: "/Users/finlay/Documents/Programming/disklavier/data/outputs/logs/250512-125822_specdiff_recording_9878761/player-query.mid"
 # kickstart_path: "data/datasets/test/intervals-060-09_1_t00s00.mid"
+player_tracking: "threshold"
+player_tracking_weight: 0
 augmentation:
   rearrange: True
   remove: 0.1
@@ -12,10 +14,11 @@ augmentation:
   total_segments_for_sequence: ~
 scheduler:
   verbose: True
+  scale_velocity: true
 seeker:
   verbose: True
-  seed: 123
-  mode: "probabilities" # best easy repeat random sequential playlist graph probabilities
+  seed: ~
+  mode: "best" # best easy repeat random sequential playlist graph probabilities
   probabilities_dist: [0.15, 0.15, 0.15, 0.15, 0.15, 0.25]
   match: "current"
   metric: "specdiff" # pitch-histogram specdiff clf-4note clf-speed clf-tpose
@@ -37,10 +40,10 @@ audio:
   midi_port: "LPK25"
   record: 64
 midi_control:
-  cc_listener:
+  duet_sensitivity:
     enable: true
     port_name: "nanoKONTROL2 SLIDER/KNOB"
     cc_number: 23
-  transpose_listener:
+  transpose:
     enable: false
     port_name: "LPK25"
