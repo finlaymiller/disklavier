@@ -573,85 +573,48 @@ class Runner(QtCore.QThread):
             return
 
         # --- check embedding diff ---
-        match self.params.player_tracking:
-            case "threshold":
-                if self.previous_player_embedding is not None:
-                    embedding_diff = (
-                        current_player_embedding - self.previous_player_embedding
-                    )
-                    diff_magnitude = np.linalg.norm(embedding_diff)
+        if "threshold" in self.params.player_tracking:
+            if self.previous_player_embedding is not None:
+                embedding_diff = (
+                    current_player_embedding - self.previous_player_embedding
+                )
+                diff_magnitude = np.linalg.norm(embedding_diff)
+                console.log(
+                    f"{self.tag} player embedding diff magnitude: {diff_magnitude:.4f}"
+                )
+                scaled_diff_magnitude = (
+                    diff_magnitude / self.params.midi_control.duet_sensitivity.max
+                )
+
+                if self.args.verbose:
                     console.log(
-                        f"{self.tag} player embedding diff magnitude: {diff_magnitude:.4f}"
-                    )
-                    scaled_diff_magnitude = (
-                        diff_magnitude / self.params.midi_control.duet_sensitivity.max
+                        f"{self.tag} player embedding diff magnitude: {scaled_diff_magnitude:.4f} (threshold is: {self.duet_sensitivity:.4f})"
                     )
 
-                    if self.args.verbose:
-                        console.log(
-                            f"{self.tag} player embedding diff magnitude: {scaled_diff_magnitude:.4f} (threshold is: {self.duet_sensitivity:.4f})"
-                        )
-
-                    if scaled_diff_magnitude > 1.0 - self.duet_sensitivity:
-                        console.log(
-                            f"{self.tag} [cyan bold]embedding diff threshold exceeded ({scaled_diff_magnitude:.4f} > { 1.0 - self.duet_sensitivity}). adjusting trajectory..."
-                        )
-                        try:
-                            # this is disabled but left in case we want to implement a similar functionality
-                            # self._adjust_playback_trajectory(embedding_diff)
-                            self.staff.seeker.offset_embedding = embedding_diff
-                        except Exception as e:
-                            console.print_exception(show_locals=True)
-                            console.log(
-                                f"{self.tag} [red]Error adjusting playback trajectory: {e}"
-                            )
-                            # reset cutoff just in case it was set before error
-                            self.playback_cutoff_tick = float("inf")
-                else:
-                    if self.args.verbose:
-                        console.log(
-                            f"{self.tag} first player embedding calculated, storing for next check."
-                        )
-            case "threshold (transposed)":
-                if self.previous_player_embedding is not None:
-                    embedding_diff = (
-                        current_player_embedding - self.previous_player_embedding
+                if scaled_diff_magnitude > 1.0 - self.duet_sensitivity:
+                    console.log(
+                        f"{self.tag} [cyan bold]embedding diff threshold exceeded ({scaled_diff_magnitude:.4f} > { 1.0 - self.duet_sensitivity}). adjusting trajectory..."
                     )
-                    diff_magnitude = np.linalg.norm(embedding_diff)
-                    scaled_diff_magnitude = (
-                        diff_magnitude / self.params.midi_control.duet_sensitivity.max
+                    try:
+                        # this is disabled but left in case we want to implement a similar functionality
+                        # self._adjust_playback_trajectory(embedding_diff)
+                        self.staff.seeker.offset_embedding = embedding_diff
+                    except Exception as e:
+                        console.print_exception(show_locals=True)
+                        console.log(
+                            f"{self.tag} [red]Error adjusting playback trajectory: {e}"
+                        )
+                        # reset cutoff just in case it was set before error
+                        self.playback_cutoff_tick = float("inf")
+            else:
+                if self.args.verbose:
+                    console.log(
+                        f"{self.tag} first player embedding calculated, storing for next check."
                     )
-
-                    if self.args.verbose:
-                        console.log(
-                            f"{self.tag} player embedding diff magnitude: {scaled_diff_magnitude:.4f} (threshold is: {self.duet_sensitivity:.4f})"
-                        )
-
-                    if scaled_diff_magnitude < 1.0 - self.duet_sensitivity:
-                        console.log(
-                            f"{self.tag} [cyan bold]embedding diff threshold exceeded ({scaled_diff_magnitude:.4f} < {1.0 - self.duet_sensitivity}). adjusting trajectory..."
-                        )
-                        try:
-                            console.log(
-                                f"{self.tag} sending embedding to seeker ({embedding_diff.shape})"
-                            )
-                            self.staff.seeker.offset_embedding = embedding_diff
-                        except Exception as e:
-                            console.print_exception(show_locals=True)
-                            console.log(
-                                f"{self.tag} [red]Error adjusting playback trajectory: {e}"
-                            )
-                            # reset cutoff just in case it was set before error
-                            self.playback_cutoff_tick = float("inf")
-                else:
-                    if self.args.verbose:
-                        console.log(
-                            f"{self.tag} first player embedding calculated, storing for next check."
-                        )
-            case "weighted average":
+        elif "average" in self.params.player_tracking:
                 console.log(f"{self.tag} sending embedding to seeker")
                 self.staff.seeker.offset_embedding = current_player_embedding
-            case _:
+        else:
                 console.log(
                     f"{self.tag} [yellow]player tracking mode '{self.params.player_tracking}' not supported. skipping embedding check."
                 )
